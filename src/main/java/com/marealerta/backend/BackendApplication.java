@@ -1,4 +1,4 @@
-package com.mare_alerta.backend;
+package com.marealerta.backend;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
