@@ -1,4 +1,4 @@
-package com.marealerta.backend;
+package com.mare_alerta.backend;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
