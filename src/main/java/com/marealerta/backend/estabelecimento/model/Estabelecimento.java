@@ -21,7 +21,7 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "estabelecimento")
-@SQLDelete(sql = "UPDATE estabelecimento SET deleted_at = CURRENT_TIMESTAMP WHERE id: ?")
+@SQLDelete(sql = "UPDATE estabelecimento SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
 @SQLRestriction("deleted_at IS NULL")
 @Getter 
 @Setter 

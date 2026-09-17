@@ -27,7 +27,7 @@ import lombok.Setter;
 @Getter 
 @Setter 
 @NoArgsConstructor 
-@SQLDelete(sql = "UPDATE usuarios SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLDelete(sql = "UPDATE usuario SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
 @SQLRestriction("deleted_at IS NULL")
 public class Usuario {
 
