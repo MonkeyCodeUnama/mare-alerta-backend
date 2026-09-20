@@ -1,4 +1,5 @@
 package com.marealerta.backend.auth.service;
+import com.marealerta.backend.usuario.model.Usuario;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -19,9 +20,8 @@ public class JwtService {
 
 
     //gerar token
-    public String gerarT(Authentication authentication){
-        UserDetails user = (UserDetails) authentication.getPrincipal();
-        return buildT(user.getUsername());
+    public String gerarT(Usuario usuario){
+        return buildT(usuario.getUsername());
     }
 
     private String buildT(String username){

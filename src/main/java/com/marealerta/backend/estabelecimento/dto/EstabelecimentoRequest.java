@@ -2,6 +2,7 @@ package com.marealerta.backend.estabelecimento.dto;
 
 import com.marealerta.backend.estabelecimento.model.TipoNegocio;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -19,16 +20,16 @@ public class EstabelecimentoRequest {
     @NotBlank
     private String documento;
 
-    @NotBlank
+    @NotNull
     private TipoNegocio tipoNegocio;
 
     @NotBlank
     private String endereco;
 
-    @NotBlank
+    @NotNull
     private BigDecimal latitude;
 
-    @NotBlank
+    @NotNull
     private BigDecimal longitude;
 
 }

@@ -21,8 +21,8 @@ public class RegisterRequest {
     @NotBlank
     private String senha;
 
-    @NotNull
+    @NotNull(message = "nao deve ser nulo")
     @Valid
-    private EstabelecimentoRequest estabelecimentoRequest;
+    private EstabelecimentoRequest estabelecimento;
 
 }
