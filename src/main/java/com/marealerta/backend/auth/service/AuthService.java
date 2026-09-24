@@ -4,20 +4,16 @@ import com.marealerta.backend.auth.dto.RegisterRequest;
 import com.marealerta.backend.auth.dto.TokenResponse;
 import com.marealerta.backend.estabelecimento.model.Estabelecimento;
 import com.marealerta.backend.estabelecimento.repository.EstabelecimentoRepository;
-import com.marealerta.backend.usuario.dto.UsuarioResponse;
 import com.marealerta.backend.usuario.model.Usuario;
 import com.marealerta.backend.usuario.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
-import org.apache.coyote.BadRequestException;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.Optional;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -30,12 +26,10 @@ public class AuthService {
     private final JwtService jwtService;
 
 
-    public TokenResponse register(RegisterRequest register) throws BadRequestException {
-        Usuario usuario = usuarioRepository.findByEmail(register.getEmail())
-                .orElse(null);
-
-        if(usuario != null){
-            throw new BadRequestException("usuario ja cadastrado");
+    @Transactional
+    public TokenResponse register(RegisterRequest register) {
+        if (usuarioRepository.existsByEmail(register.getEmail())) {
+            throw new EmailAlreadyRegisteredException();
         }
 
         Estabelecimento estab = new Estabelecimento();
@@ -53,14 +47,14 @@ public class AuthService {
         user.setSenha(passwordEncoder.encode(register.getSenha()));
         user.setEstabelecimento(estab);
 
-        usuarioRepository.save(user);
+        usuarioRepository.saveAndFlush(user);
 
         String token = jwtService.gerarT(user);
         return new TokenResponse(token);
 
     }
 
-    public TokenResponse login(LoginRequest request) throws BadRequestException {
+    public TokenResponse login(LoginRequest request) {
         try {
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
@@ -76,9 +70,7 @@ public class AuthService {
             return new TokenResponse(token);
 
         } catch (BadCredentialsException e) {
-            throw new BadRequestException("credenciais invalidas");
-        } catch (Exception e){
-            throw e;
+            throw new InvalidCredentialsException();
         }
     }
 }
