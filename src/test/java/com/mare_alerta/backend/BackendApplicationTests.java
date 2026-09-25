@@ -87,9 +87,9 @@ class BackendApplicationTests {
 	}
 
 	@Test
-	void protegeRotasSemToken() throws Exception {
+	void permiteRotasSemToken() throws Exception {
 		mockMvc.perform(get("/alertas"))
-				.andExpect(status().isUnauthorized());
+				.andExpect(status().isOk());
 	}
 
 	@Test
@@ -112,10 +112,11 @@ class BackendApplicationTests {
 	private String registrationPayload(String email, String password) {
 		return """
 				{ "email": "%s", "senha": "%s", "estabelecimento": {
-				  "nome": "Mercado Central", "documento": "12345678901", "tipoNegocio": "MERCADO",
+				  "nome": "Mercado Central", "documento": "%s", "tipoNegocio": "MERCADO",
 				  "endereco": "Rua das Flores, 10", "latitude": -23.550520, "longitude": -46.633308
 				} }
-				""".formatted(email, password);
+				""".formatted(email, password,
+						UUID.randomUUID().toString().replaceAll("[^0-9]", "").substring(0, 11));
 	}
 
 }

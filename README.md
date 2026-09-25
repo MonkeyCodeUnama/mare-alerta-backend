@@ -16,6 +16,16 @@ Backend Java/Spring Boot do Maré Alerta. Nesta etapa, a API oferece apenas aute
 
 O perfil `dev` conecta em `jdbc:postgresql://localhost:5432/marealerta_dev`. As migrations Flyway são aplicadas automaticamente.
 
+## Executar com Docker
+
+Construa a imagem e inicie a API junto com o PostgreSQL:
+
+```bash
+docker compose up --build
+```
+
+A API fica disponível em `http://localhost:8080` e o Swagger UI em `http://localhost:8080/swagger-ui/index.html`. Para definir uma chave JWT própria, exporte `JWT_KEY` antes de iniciar o Compose. Encerre com `docker compose down`; para remover também os dados locais do banco, use `docker compose down -v`.
+
 Para configuração de produção, defina `SPRING_PROFILES_ACTIVE=prod`, `DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_KEY` e, opcionalmente, `JWT_EXPIRATION`.
 
 ## API de autenticação
