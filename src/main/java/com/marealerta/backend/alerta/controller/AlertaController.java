@@ -19,7 +19,7 @@ public class AlertaController {
 
     }
 
-    @GetMapping
+    @GetMapping("/{id}")
     public void verDetalhe(){
 
     }
