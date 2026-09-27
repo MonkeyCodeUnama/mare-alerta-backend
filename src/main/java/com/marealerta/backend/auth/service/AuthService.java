@@ -2,6 +2,7 @@ package com.marealerta.backend.auth.service;
 import com.marealerta.backend.auth.dto.LoginRequest;
 import com.marealerta.backend.auth.dto.RegisterRequest;
 import com.marealerta.backend.auth.dto.TokenResponse;
+import com.marealerta.backend.estabelecimento.model.Bairro;
 import com.marealerta.backend.estabelecimento.model.Estabelecimento;
 import com.marealerta.backend.estabelecimento.repository.EstabelecimentoRepository;
 import com.marealerta.backend.usuario.model.Usuario;
@@ -37,7 +38,7 @@ public class AuthService {
         estab.setDocumento(register.getEstabelecimento().getDocumento());
         estab.setTipoNegocio(register.getEstabelecimento().getTipoNegocio());
         estab.setResponsavel("Não informado");
-        estab.setBairro("Marco");
+        estab.setBairro(Bairro.MARCO);
         estab.setLogradouro(register.getEstabelecimento().getEndereco() != null ? register.getEstabelecimento().getEndereco() : "Não informado");
         estab.setNumero("S/N");
         estab.setMunicipio("Belém");

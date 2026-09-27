@@ -49,8 +49,9 @@ public class Estabelecimento {
     @Column(nullable = false, length = 150)
     private String responsavel;
 
-    @Column(nullable = false, length = 100)
-    private String bairro;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
+    private Bairro bairro;
 
     @Column(nullable = false, length = 255)
     private String logradouro;
@@ -92,6 +93,9 @@ public class Estabelecimento {
         this.updatedAt = LocalDateTime.now();
         if (this.ativo == null) {
             this.ativo = true;
+        }
+        if (this.bairro == null) {
+            this.bairro = Bairro.MARCO;
         }
         if (this.municipio == null) {
             this.municipio = "Belém";

@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import com.marealerta.backend.estabelecimento.model.Bairro;
 import com.marealerta.backend.estabelecimento.model.Estabelecimento;
 import com.marealerta.backend.estabelecimento.model.TipoNegocio;
 
@@ -14,11 +15,9 @@ public interface EstabelecimentoRepository extends JpaRepository<Estabelecimento
 
     List<Estabelecimento> findByTipoNegocio(TipoNegocio tipoNegocio);
 
-    List<Estabelecimento> findByBairro(String bairro);
+    List<Estabelecimento> findByBairro(Bairro bairro);
 
-    List<Estabelecimento> findByBairroIgnoreCase(String bairro);
-
-    List<Estabelecimento> findByBairroAndTipoNegocio(String bairro, TipoNegocio tipoNegocio);
+    List<Estabelecimento> findByBairroAndTipoNegocio(Bairro bairro, TipoNegocio tipoNegocio);
 
     List<Estabelecimento> findByAtivoTrue();
 }
