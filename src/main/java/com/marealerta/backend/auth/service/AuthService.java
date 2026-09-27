@@ -36,9 +36,13 @@ public class AuthService {
         estab.setNome(register.getEstabelecimento().getNome());
         estab.setDocumento(register.getEstabelecimento().getDocumento());
         estab.setTipoNegocio(register.getEstabelecimento().getTipoNegocio());
-        estab.setLatitude(register.getEstabelecimento().getLatitude());
-        estab.setLongitude(register.getEstabelecimento().getLongitude());
-        estab.setEndereco(register.getEstabelecimento().getEndereco());
+        estab.setResponsavel("Não informado");
+        estab.setBairro("Marco");
+        estab.setLogradouro(register.getEstabelecimento().getEndereco() != null ? register.getEstabelecimento().getEndereco() : "Não informado");
+        estab.setNumero("S/N");
+        estab.setMunicipio("Belém");
+        estab.setUf("PA");
+        estab.setAtivo(true);
 
         estabelecimentoRepository.save(estab);
 
