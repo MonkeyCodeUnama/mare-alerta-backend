@@ -6,11 +6,6 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/estabelecimento")
 public class EstabelecimentoController {
 
-    @PostMapping
-    public void criar(){
-
-    }
-
     @GetMapping("/{id}")
     public void buscarEst(){
 

@@ -49,6 +49,6 @@ public class Ocorrencia {
     @Column(name = "data_inicio", nullable = false)
     private LocalDateTime dataInicio;
 
-    @Column(name = "data_fim", nullable = false)
+    @Column(name = "data_fim")
     private LocalDateTime dataFim;
 }
