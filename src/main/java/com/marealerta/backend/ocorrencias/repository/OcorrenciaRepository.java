@@ -1,30 +1,22 @@
 package com.marealerta.backend.ocorrencias.repository;
 
+import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 import com.marealerta.backend.ocorrencias.model.Ocorrencia;
-
-import java.math.BigDecimal;
-import java.util.List;
-
+import com.marealerta.backend.ocorrencias.model.StatusOcorrencia;
 
 public interface OcorrenciaRepository extends JpaRepository<Ocorrencia, Long> {
 
-    List<Ocorrencia> findByDataFimIsNull();
+    Optional<Ocorrencia> findByProtocolo(String protocolo);
 
-    @Query("""
-        SELECT o FROM Ocorrencia o 
-        WHERE o.latitude BETWEEN :latMin AND :latMax 
-          AND o.longitude BETWEEN :lonMin AND :lonMax
-        ORDER BY o.dataInicio DESC
-    """)
-    List<Ocorrencia> findByBoundingBox(
-        @Param("latMin") BigDecimal latMin,
-        @Param("latMax") BigDecimal latMax,
-        @Param("lonMin") BigDecimal lonMin,
-        @Param("lonMax") BigDecimal lonMax
-    );
+    List<Ocorrencia> findByEstabelecimentoIdOrderByDataOcorrenciaDescHoraInicioDesc(Long estabelecimentoId);
+
+    List<Ocorrencia> findByStatusOrderByDataOcorrenciaDesc(StatusOcorrencia status);
+
+    List<Ocorrencia> findByEstabelecimentoIdAndStatus(Long estabelecimentoId, StatusOcorrencia status);
+
+    long countByEstabelecimentoId(Long estabelecimentoId);
 }
