@@ -5,4 +5,4 @@ spring:
     active: dev
 jwt:
   expiration: ${JWT_EXPIRATION:9000000}
-  key: ${JWT_KEY}
+  key: ${JWT_KEY:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
