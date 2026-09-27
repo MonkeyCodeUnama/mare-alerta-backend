@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.io.Decoders;
 import org.springframework.beans.factory.annotation.Value;import org.springframework.security.core.Authentication;import org.springframework.security.core.userdetails.UserDetails;import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -37,7 +38,7 @@ public class JwtService {
     }
 
     private SecretKey getAssinaturaChave(){
-        return Keys.hmacShaKeyFor(chave.getBytes());
+        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(chave));
     }
 
     public boolean isTokenValido(String token){

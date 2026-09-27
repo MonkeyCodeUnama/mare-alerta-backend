@@ -1,0 +1,1 @@
+ALTER TABLE estabelecimento ADD COLUMN deleted_at TIMESTAMP;

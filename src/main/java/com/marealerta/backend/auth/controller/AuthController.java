@@ -7,7 +7,7 @@ import com.marealerta.backend.usuario.model.Usuario;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.apache.coyote.BadRequestException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,6 +15,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.marealerta.backend.auth.service.AuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 
 @RestController
 @RequiredArgsConstructor
@@ -22,23 +25,32 @@ import com.marealerta.backend.auth.service.AuthService;
 public class AuthController {
 
     private final AuthService authService;
-    private TokenResponse TokenR;
 
+    @Operation(summary = "Cadastrar um novo usuário e estabelecimento")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "usuário criado"),
+            @ApiResponse(responseCode = "400", description = "dados inválidos"),
+            @ApiResponse(responseCode = "409", description = "e-mail já cadastrado")
+    })
     @PostMapping("/registro")
-    public ResponseEntity<TokenResponse> cadastrar(@RequestBody @Valid RegisterRequest registerRequest) throws BadRequestException {
-        TokenR = authService.register(registerRequest);
-        return ResponseEntity.ok(TokenR);
+    public ResponseEntity<TokenResponse> cadastrar(@RequestBody @Valid RegisterRequest registerRequest) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(registerRequest));
     }
 
+    @Operation(summary = "login")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "autenticação realizada"),
+            @ApiResponse(responseCode = "400", description = "dados inválidos"),
+            @ApiResponse(responseCode = "401", description = "credenciais inválidas")
+    })
     @PostMapping("/login")
-    public ResponseEntity<TokenResponse> login(@RequestBody @Valid LoginRequest loginRequest) throws BadRequestException{
-        TokenR = authService.login(loginRequest);
-        return ResponseEntity.ok(TokenR);
+    public ResponseEntity<TokenResponse> login(@RequestBody @Valid LoginRequest loginRequest) {
+        return ResponseEntity.ok(authService.login(loginRequest));
     }
 
     @GetMapping("/me")
     public ResponseEntity<?> me(@AuthenticationPrincipal Usuario usuario){
-        return ResponseEntity.ok(usuario.getUsername());
+        return ResponseEntity.ok(usuario.getEmail());
     }
 
 }

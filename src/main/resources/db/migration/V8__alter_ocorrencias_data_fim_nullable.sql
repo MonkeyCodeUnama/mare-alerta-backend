@@ -1,0 +1,1 @@
+ALTER TABLE ocorrencias ALTER COLUMN data_fim DROP NOT NULL;
