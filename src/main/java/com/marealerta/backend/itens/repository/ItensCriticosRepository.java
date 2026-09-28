@@ -9,4 +9,6 @@ import com.marealerta.backend.itens.model.ItemCritico;
 public interface ItensCriticosRepository extends JpaRepository<ItemCritico, Long> {
     
     List<ItemCritico> findByEstabelecimentoId(Long estabelecimentoId);
+
+    void deleteByEstabelecimentoId(Long estabelecimentoId);
 }

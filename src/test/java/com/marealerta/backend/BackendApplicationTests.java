@@ -14,6 +14,7 @@ import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -103,6 +104,84 @@ class BackendApplicationTests {
 
 		mockMvc.perform(get("/alertas").header("Authorization", "Bearer " + token))
 				.andExpect(status().isOk());
+	}
+
+	@Test
+	@DisplayName("executa onboarding em 2 etapas com campos e aliases do frontend (/cadastro -> /estabelecimento)")
+	void deveExecutarOnboardingEmDuasEtapasComCamposDoFrontend() throws Exception {
+		String email = uniqueEmail();
+		String cnpj = UUID.randomUUID().toString().replaceAll("[^0-9]", "").substring(0, 14);
+
+		// ETAPA 1: /cadastro (Rápido - name, cnpj, neighborhood, email, senha)
+		String etapa1Payload = """
+				{
+				  "email": "%s",
+				  "senha": "SenhaForte2024!",
+				  "estabelecimento": {
+				    "name": "Mercearia do Ver-o-Peso",
+				    "cnpj": "%s",
+				    "neighborhood": "Campina"
+				  }
+				}
+				""".formatted(email, cnpj);
+
+		MvcResult etapa1Result = mockMvc.perform(post("/auth/registro")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(etapa1Payload))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.token").isNotEmpty())
+				.andExpect(jsonPath("$.estabelecimentoId").isNumber())
+				.andReturn();
+
+		String token = com.jayway.jsonpath.JsonPath.read(etapa1Result.getResponse().getContentAsString(), "$.token");
+		Number estabIdNum = com.jayway.jsonpath.JsonPath.read(etapa1Result.getResponse().getContentAsString(), "$.estabelecimentoId");
+		Long estabId = estabIdNum.longValue();
+
+		// ETAPA 2: /estabelecimento (Completar Perfil - owner, street, number, type, days, opening, closing, criticalItems)
+		String etapa2Payload = """
+				{
+				  "owner": "Maria",
+				  "street": "Travessa Visconde de Souza Franco (Doca)",
+				  "number": "742",
+				  "type": "Mercado",
+				  "days": ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"],
+				  "opening": "07:30",
+				  "closing": "19:00",
+				  "criticalItems": ["Freezer no chão", "Estoque de secos"]
+				}
+				""";
+
+		mockMvc.perform(put("/estabelecimento/" + estabId)
+				.header("Authorization", "Bearer " + token)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(etapa2Payload))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.nome").value("Mercearia do Ver-o-Peso"))
+				.andExpect(jsonPath("$.responsavel").value("Maria"))
+				.andExpect(jsonPath("$.owner").value("Maria"))
+				.andExpect(jsonPath("$.logradouro").value("Travessa Visconde de Souza Franco (Doca)"))
+				.andExpect(jsonPath("$.street").value("Travessa Visconde de Souza Franco (Doca)"))
+				.andExpect(jsonPath("$.numero").value("742"))
+				.andExpect(jsonPath("$.number").value("742"))
+				.andExpect(jsonPath("$.tipoNegocio").value("MERCADO"))
+				.andExpect(jsonPath("$.type").value("MERCADO"))
+				.andExpect(jsonPath("$.horarioAbertura").value("07:30"))
+				.andExpect(jsonPath("$.opening").value("07:30"))
+				.andExpect(jsonPath("$.horarioFechamento").value("19:00"))
+				.andExpect(jsonPath("$.closing").value("19:00"))
+				.andExpect(jsonPath("$.dias").isArray())
+				.andExpect(jsonPath("$.days").isArray())
+				.andExpect(jsonPath("$.itensCriticos[0]").value("Freezer no chão"))
+				.andExpect(jsonPath("$.criticalItems[1]").value("Estoque de secos"));
+
+		// Consulta do perfil atualizado via /estabelecimento/me
+		mockMvc.perform(get("/estabelecimento/me")
+				.header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(estabId))
+				.andExpect(jsonPath("$.owner").value("Maria"))
+				.andExpect(jsonPath("$.dias").isArray())
+				.andExpect(jsonPath("$.itensCriticos").isArray());
 	}
 
 	private String uniqueEmail() {

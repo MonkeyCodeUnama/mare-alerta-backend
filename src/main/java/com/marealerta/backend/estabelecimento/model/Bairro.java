@@ -43,4 +43,31 @@ public enum Bairro {
     MOSQUEIRO("Mosqueiro");
 
     private final String descricao;
+
+    @com.fasterxml.jackson.annotation.JsonCreator
+    public static Bairro fromString(String value) {
+        if (value == null || value.isBlank()) return null;
+        String val = value.trim();
+        for (Bairro b : values()) {
+            if (b.name().equalsIgnoreCase(val) || b.descricao.equalsIgnoreCase(val)) {
+                return b;
+            }
+        }
+        String normalized = java.text.Normalizer.normalize(val, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toUpperCase()
+                .replace(" ", "_")
+                .replace("-", "_");
+        for (Bairro b : values()) {
+            if (b.name().equalsIgnoreCase(normalized)) {
+                return b;
+            }
+        }
+        for (Bairro b : values()) {
+            if (normalized.startsWith(b.name()) || b.name().startsWith(normalized)) {
+                return b;
+            }
+        }
+        return MARCO;
+    }
 }

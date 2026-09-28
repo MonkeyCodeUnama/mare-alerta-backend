@@ -1,5 +1,7 @@
 package com.marealerta.backend.estabelecimento.dto;
 
+import java.util.List;
+
 import com.marealerta.backend.estabelecimento.model.Bairro;
 import com.marealerta.backend.estabelecimento.model.Estabelecimento;
 import com.marealerta.backend.estabelecimento.model.TipoNegocio;
@@ -33,7 +35,35 @@ public class EstabelecimentoResponse {
     private String telefone;
     private Boolean ativo;
 
+    private List<String> dias;
+    private String horarioAbertura;
+    private String horarioFechamento;
+    private List<String> itensCriticos;
+
+    // Métodos utilitários de compatibilidade com o frontend (StoreContext / telas)
+    public String getName() { return nome; }
+    public String getOwner() { return responsavel; }
+    public String getCnpj() { return documento; }
+    public String getNeighborhood() { return bairroDescricao != null ? bairroDescricao : (bairro != null ? bairro.getDescricao() : null); }
+    public String getStreet() { return logradouro; }
+    public String getNumber() { return numero; }
+    public String getType() { return tipoNegocio != null ? tipoNegocio.name() : null; }
+    public List<String> getDays() { return dias; }
+    public String getOpening() { return horarioAbertura; }
+    public String getClosing() { return horarioFechamento; }
+    public List<String> getCriticalItems() { return itensCriticos; }
+
     public static EstabelecimentoResponse fromEntity(Estabelecimento e) {
+        return fromEntity(e, null, null, null, null);
+    }
+
+    public static EstabelecimentoResponse fromEntity(
+            Estabelecimento e,
+            List<String> dias,
+            String horarioAbertura,
+            String horarioFechamento,
+            List<String> itensCriticos
+    ) {
         if (e == null) return null;
         return EstabelecimentoResponse.builder()
                 .id(e.getId())
@@ -51,6 +81,10 @@ public class EstabelecimentoResponse {
                 .uf(e.getUf())
                 .telefone(e.getTelefone())
                 .ativo(e.getAtivo())
+                .dias(dias)
+                .horarioAbertura(horarioAbertura)
+                .horarioFechamento(horarioFechamento)
+                .itensCriticos(itensCriticos)
                 .build();
     }
 }
