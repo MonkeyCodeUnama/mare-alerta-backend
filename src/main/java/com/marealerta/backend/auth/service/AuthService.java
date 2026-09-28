@@ -33,17 +33,22 @@ public class AuthService {
             throw new EmailAlreadyRegisteredException();
         }
 
-        Estabelecimento estab = new Estabelecimento();
-        estab.setNome(register.getEstabelecimento().getNome());
-        estab.setDocumento(register.getEstabelecimento().getDocumento());
-        estab.setTipoNegocio(register.getEstabelecimento().getTipoNegocio());
-        estab.setResponsavel("Não informado");
-        estab.setBairro(Bairro.MARCO);
-        estab.setLogradouro(register.getEstabelecimento().getEndereco() != null ? register.getEstabelecimento().getEndereco() : "Não informado");
-        estab.setNumero("S/N");
-        estab.setMunicipio("Belém");
-        estab.setUf("PA");
-        estab.setAtivo(true);
+        var dto = register.getEstabelecimento();
+        Estabelecimento estab = Estabelecimento.builder()
+                .nome(dto.getNome())
+                .documento(dto.getDocumento())
+                .tipoNegocio(dto.getTipoNegocio())
+                .responsavel(dto.getResponsavel() != null ? dto.getResponsavel() : "Não informado")
+                .bairro(dto.getBairro() != null ? dto.getBairro() : Bairro.MARCO)
+                .logradouro(dto.getLogradouro() != null ? dto.getLogradouro() : "Não informado")
+                .numero(dto.getNumero() != null ? dto.getNumero() : "S/N")
+                .complemento(dto.getComplemento())
+                .cep(dto.getCep())
+                .municipio(dto.getMunicipio() != null ? dto.getMunicipio() : "Belém")
+                .uf(dto.getUf() != null ? dto.getUf() : "PA")
+                .telefone(dto.getTelefone())
+                .ativo(true)
+                .build();
 
         estabelecimentoRepository.save(estab);
 

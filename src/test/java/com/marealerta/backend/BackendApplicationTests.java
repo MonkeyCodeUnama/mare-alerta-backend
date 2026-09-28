@@ -113,7 +113,8 @@ class BackendApplicationTests {
 		return """
 				{ "email": "%s", "senha": "%s", "estabelecimento": {
 				  "nome": "Mercado Central", "documento": "%s", "tipoNegocio": "MERCADO",
-				  "endereco": "Rua das Flores, 10", "latitude": -23.550520, "longitude": -46.633308
+				  "responsavel": "Maria Silva", "bairro": "MARCO",
+				  "logradouro": "Rua das Flores", "numero": "10"
 				} }
 				""".formatted(email, password,
 						UUID.randomUUID().toString().replaceAll("[^0-9]", "").substring(0, 11));
