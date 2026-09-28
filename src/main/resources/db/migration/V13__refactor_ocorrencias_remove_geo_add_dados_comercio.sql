@@ -1,9 +1,5 @@
--- V13: Refatorar ocorrencias para vincular a comercio e adicionar dados estruturados
-
--- Remover indice antigo baseado em coordenadas
 DROP INDEX IF EXISTS idx_ocorrencias_coordenadas;
 
--- Ajustar colunas antigas e adicionar novos campos estruturados
 ALTER TABLE ocorrencias
     DROP COLUMN IF EXISTS latitude,
     DROP COLUMN IF EXISTS longitude,
@@ -24,12 +20,10 @@ ALTER TABLE ocorrencias
     ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
--- Garantir protocolo preenchido e unico
 UPDATE ocorrencias SET protocolo = 'OC-' || id WHERE protocolo IS NULL;
 ALTER TABLE ocorrencias ALTER COLUMN protocolo SET NOT NULL;
 ALTER TABLE ocorrencias ADD CONSTRAINT uq_ocorrencias_protocolo UNIQUE (protocolo);
 
--- Índices B-Tree para buscas e relatorios
 CREATE INDEX idx_ocorrencias_estabelecimento_id ON ocorrencias(estabelecimento_id);
 CREATE INDEX idx_ocorrencias_estab_data ON ocorrencias(estabelecimento_id, data_ocorrencia DESC);
 CREATE INDEX idx_ocorrencias_status ON ocorrencias(status);

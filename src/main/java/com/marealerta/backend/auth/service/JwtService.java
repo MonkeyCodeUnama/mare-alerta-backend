@@ -20,7 +20,6 @@ public class JwtService {
     private String chave;
 
 
-    //gerar token
     public String gerarT(Usuario usuario){
         return buildT(usuario.getUsername());
     }
@@ -55,8 +54,6 @@ public class JwtService {
     }
 
     private Claims getClaims(String token){
-        //validar assinatura
-        //validar expiracao
         return Jwts.parser()
                 .verifyWith(getAssinaturaChave())
                 .build()

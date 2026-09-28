@@ -102,7 +102,6 @@ public class EstabelecimentoService {
 
         estabelecimentoRepository.save(estab);
 
-        // Atualizar horários de funcionamento se informados
         if (request.getDias() != null && !request.getDias().isEmpty()) {
             estabelecimentoHorarioRepository.deleteByEstabelecimentoId(estab.getId());
 
@@ -122,7 +121,6 @@ public class EstabelecimentoService {
             }
         }
 
-        // Atualizar itens críticos se informados
         if (request.getItensCriticos() != null) {
             itensCriticosRepository.deleteByEstabelecimentoId(estab.getId());
 

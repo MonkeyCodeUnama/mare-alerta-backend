@@ -40,7 +40,6 @@ public class EstabelecimentoResponse {
     private String horarioFechamento;
     private List<String> itensCriticos;
 
-    // Métodos utilitários de compatibilidade com o frontend (StoreContext / telas)
     public String getName() { return nome; }
     public String getOwner() { return responsavel; }
     public String getCnpj() { return documento; }

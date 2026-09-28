@@ -112,7 +112,6 @@ class BackendApplicationTests {
 		String email = uniqueEmail();
 		String cnpj = UUID.randomUUID().toString().replaceAll("[^0-9]", "").substring(0, 14);
 
-		// ETAPA 1: /cadastro (Rápido - name, cnpj, neighborhood, email, senha)
 		String etapa1Payload = """
 				{
 				  "email": "%s",
@@ -137,7 +136,6 @@ class BackendApplicationTests {
 		Number estabIdNum = com.jayway.jsonpath.JsonPath.read(etapa1Result.getResponse().getContentAsString(), "$.estabelecimentoId");
 		Long estabId = estabIdNum.longValue();
 
-		// ETAPA 2: /estabelecimento (Completar Perfil - owner, street, number, type, days, opening, closing, criticalItems)
 		String etapa2Payload = """
 				{
 				  "owner": "Maria",
@@ -174,7 +172,6 @@ class BackendApplicationTests {
 				.andExpect(jsonPath("$.itensCriticos[0]").value("Freezer no chão"))
 				.andExpect(jsonPath("$.criticalItems[1]").value("Estoque de secos"));
 
-		// Consulta do perfil atualizado via /estabelecimento/me
 		mockMvc.perform(get("/estabelecimento/me")
 				.header("Authorization", "Bearer " + token))
 				.andExpect(status().isOk())

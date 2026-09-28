@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum Bairro {
-    // Zona Central / Comercial / Orla (Área de Risco de Maré)
     CAMPINA("Campina"),
     CIDADE_VELHA("Cidade Velha"),
     REDUTO("Reduto"),
@@ -18,7 +17,6 @@ public enum Bairro {
     GUAMA("Guamá"),
     CREMACAO("Cremação"),
 
-    // Zona Sul / Leste
     MARCO("Marco"),
     PEDREIRA("Pedreira"),
     TELEGRAFO("Telégrafo"),
@@ -28,7 +26,6 @@ public enum Bairro {
     SACRAMENTA("Sacramenta"),
     BARREIRO("Barreiro"),
 
-    // Expansão / Entorno e Distritos
     MARAMBAIA("Marambaia"),
     CASTANHEIRA("Castanheira"),
     VAL_DE_CAES("Val-de-Cães"),

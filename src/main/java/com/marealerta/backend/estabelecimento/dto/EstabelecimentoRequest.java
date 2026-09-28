@@ -31,7 +31,6 @@ public class EstabelecimentoRequest {
     @JsonAlias({"neighborhood"})
     private Bairro bairro;
 
-    // Campos da Etapa 2 (opcionais no cadastro inicial, preenchidos na tela /estabelecimento)
     @JsonAlias({"owner"})
     private String responsavel;
 
