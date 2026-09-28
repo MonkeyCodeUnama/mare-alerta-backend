@@ -24,19 +24,14 @@ public class EstabelecimentoRequest {
     @NotBlank(message = "O documento/CNPJ é obrigatório")
     private String documento;
 
-    @NotNull(message = "O tipo de negócio é obrigatório")
-    private TipoNegocio tipoNegocio;
-
-    @NotBlank(message = "O responsável é obrigatório")
-    private String responsavel;
-
     @NotNull(message = "O bairro é obrigatório")
     private Bairro bairro;
 
-    @NotBlank(message = "O logradouro é obrigatório")
+    // Campos da Etapa 2 (opcionais no cadastro inicial, preenchidos na tela /estabelecimento)
+    private String responsavel;
+
     private String logradouro;
 
-    @NotBlank(message = "O número é obrigatório")
     private String numero;
 
     private String complemento;
@@ -50,4 +45,7 @@ public class EstabelecimentoRequest {
     private String uf = "PA";
 
     private String telefone;
+
+    @Builder.Default
+    private TipoNegocio tipoNegocio = TipoNegocio.OUTROS;
 }
