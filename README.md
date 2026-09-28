@@ -153,4 +153,4 @@ Os testes cobrem:
 
 ## 📄 Documentação Complementar
 
-- [REFERENCIA_INTEGRACAO.md](file:///c:/Users/dkaua/Documents/programação/Maré%20alerta-backend/mare-alerta-backend/REFERENCIA_INTEGRACAO.md): Guia detalhado do contrato frontend-backend e mapeamento de dados operacionais.
+- **`backend-integracao.md`**: Guia de referência técnica do contrato entre frontend e backend, cobrindo o mapeamento de dados operacionais, cotas de alagamento e regras de persistência.
