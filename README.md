@@ -1,64 +1,156 @@
 # Maré Alerta — Backend
 
-Backend Java/Spring Boot do Maré Alerta. Nesta etapa, a API oferece apenas autenticação por JWT.
+API RESTful do ecossistema **Maré Alerta**, desenvolvida em **Java 21** e **Spring Boot**. O sistema provê inteligência preditiva, monitoramento hidrológico e proteção patrimonial para comerciantes localizados em áreas de cota crítica da bacia hidrográfica de Belém/PA.
 
-## Requisitos
+---
 
-- Java 21
-- Docker e Docker Compose, para PostgreSQL local
-- Uma chave JWT Base64 que decodifique para pelo menos 32 bytes
+## 🛠️ Stack Tecnológica
 
-## Execução local
+- **Linguagem & Framework:** Java 21 (LTS) & Spring Boot 4.x
+- **Persistência & ORM:** Spring Data JPA / Hibernate com PostgreSQL 16
+- **Versionamento de Banco:** Flyway Migrations (V1 a V15)
+- **Segurança:** Spring Security, JWT (HMAC-SHA256) e criptografia de senhas com BCrypt
+- **Documentação Interativa:** OpenAPI 3 / Swagger UI
+- **Build & Automação:** Gradle 9.7.1
+- **Conteinerização:** Docker & Docker Compose
 
-1. Inicie o banco: `docker compose up -d`.
-2. Exporte uma chave JWT: `export JWT_KEY='MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE='`.
-3. Execute: `./gradlew bootRun`.
+---
 
-O perfil `dev` conecta em `jdbc:postgresql://localhost:5432/marealerta_dev`. As migrations Flyway são aplicadas automaticamente.
+## 🏛️ Arquitetura do Banco de Dados (3FN)
 
-## Executar com Docker
+O banco de dados foi modelado seguindo a **3ª Forma Normal (3FN)**, com integridade referencial, índices B-Tree estratégicos, índices parciais para soft delete e catálogo oficial de bairros:
 
-Construa a imagem e inicie a API junto com o PostgreSQL:
+```
+┌──────────────────┐       1:1       ┌──────────────────┐
+│     usuario      │─────────────────│  estabelecimento │
+└──────────────────┘                 └────────┬─────────┘
+                                              │ 1:N
+               ┌──────────────────────────────┼──────────────────────────────┐
+               ▼                              ▼                              ▼
+┌──────────────────────────────┐ ┌──────────────────────────────┐ ┌──────────────────────────────┐
+│   estabelecimento_horarios   │ │        itens_criticos        │ │       itens_checklist        │
+│ (dias 1..7, abertura, fecha) │ │   (maquinário, estoques)     │ │   (tarefas de mitigação)     │
+└──────────────────────────────┘ └──────────────────────────────┘ └──────────────────────────────┘
+```
+
+### Principais Entidades e Tabelas:
+- **`estabelecimento` (V1, V11):** Perfil comercial com endereço estruturado (`logradouro`, `numero`, `bairro`, `cep`, `municipio`, `uf`), tipo de negócio e soft delete (`deleted_at`).
+- **`bairro` (Enum oficial):** Catálogo com os bairros oficiais de Belém (Campina, Umarizal, Marco, Cidade Velha, Jurunas, etc.), com índice B-Tree e tolerância a acentos.
+- **`estabelecimento_horarios` (V3):** Grade de funcionamento semanal normalizada por dia da semana (`dia_semana` 1..7) e horários (`TIME`).
+- **`itens_criticos` (V7):** Relação de bens vulneráveis à cota de alagamento (freezers, motores, estoque no chão, computadores).
+- **`itens_checklist` (V12):** Itens de verificação e checklist preventivo de maré alta com prioridades e status.
+- **`ocorrencias` & `ocorrencia_fotos` (V13, V14):** Registro oficial de sinistros pós-alagamento com protocolo estável, dados comerciais e anexos de fotos com hash SHA-256.
+- **`leituras_telemetria` (V15):** Histórico de cotas observadas, níveis de maré e previsões hidrológicas.
+- **`alertas` (V4):** Comunicações de emergência e cotas de alerta emitidas pela Defesa Civil.
+
+---
+
+## 🔄 Fluxo de Onboarding em 2 Etapas (Integração Frontend)
+
+O backend suporta nativamente o fluxo de cadastro dividido do frontend React:
+
+```
+Tela 1: /cadastro (Rápido)
+  └── POST /auth/registro ──────────► Retorna Token JWT + estabelecimentoId
+                                               │
+                                               ▼
+Tela 2: /estabelecimento (Completar)
+  └── PUT /estabelecimento/{id} ────► Persiste Horários, Itens Críticos e Endereço
+```
+
+### 1. Etapa 1 — Cadastro Rápido (`/cadastro`)
+- **Endpoint:** `POST /auth/registro` (Público)
+- **Suporte a Aliases:** Aceita tanto chaves em inglês (`name`, `cnpj`, `neighborhood`) quanto em português (`nome`, `documento`, `bairro`).
+- Cria o `Estabelecimento` com valores padrão provisórios e o `Usuario` com senha criptografada em BCrypt.
+- **Retorno (201 Created):**
+  ```json
+  {
+    "token": "eyJhbGciOiJIUzI1NiJ9...",
+    "estabelecimentoId": 1,
+    "email": "contato@merceriaveropeso.com.br"
+  }
+  ```
+
+### 2. Etapa 2 — Completar Perfil (`/estabelecimento`)
+- **Endpoint:** `PUT /estabelecimento/{id}`
+- **Headers:** `Authorization: Bearer <token>`
+- **Payload compatível com o frontend:**
+  ```json
+  {
+    "owner": "Maria Silva",
+    "street": "Travessa Visconde de Souza Franco (Doca)",
+    "number": "742",
+    "type": "Mercado",
+    "days": ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"],
+    "opening": "07:30",
+    "closing": "19:00",
+    "criticalItems": ["Freezer no chão", "Estoque de secos", "Caixa registradora / CPU"]
+  }
+  ```
+- Atualiza o endereço na tabela `estabelecimento`, sincroniza a grade na tabela `estabelecimento_horarios` e salva os bens na tabela `itens_criticos`.
+
+---
+
+## 📡 Resumo dos Endpoints da API
+
+| Método | Rota | Descrição | Autenticação |
+| :--- | :--- | :--- | :---: |
+| `POST` | `/auth/registro` | Etapa 1: Criação de conta e estabelecimento inicial | Pública |
+| `POST` | `/auth/login` | Autenticação de usuário e emissão de token JWT | Pública |
+| `GET` | `/estabelecimento/me` | Consulta o perfil do estabelecimento vinculado ao usuário logado | Bearer Token |
+| `GET` | `/estabelecimento/{id}` | Busca estabelecimento detalhado por ID | Bearer Token |
+| `PUT` | `/estabelecimento/{id}` | Etapa 2: Atualização completa do perfil comercial | Bearer Token |
+| `GET` | `/estabelecimento` | Lista todos os estabelecimentos ativos | Bearer Token |
+| `GET` | `/alertas` | Lista alertas e comunicados da Defesa Civil | Pública |
+| `POST` | `/ocorrencias` | Cadastro de sinistro com dados de perda e fotos | Bearer Token |
+
+---
+
+## 🚀 Execução Local
+
+### Pré-requisitos
+- **Java 21** instalado e configurado no `JAVA_HOME`.
+- **Docker** e **Docker Compose** ativos.
+
+### 1. Iniciar o Banco de Dados (PostgreSQL 16)
+```bash
+docker compose up -d
+```
+> O container `marealerta_pg` iniciará na porta `5432` com os bancos `marealerta_dev` e `marealerta_test`.
+
+### 2. Executar a Aplicação
+No Windows (PowerShell):
+```powershell
+./gradlew bootRun
+```
+No Linux / macOS:
+```bash
+./gradlew bootRun
+```
+> As migrações Flyway (`V1` a `V15`) são aplicadas automaticamente no boot.
+
+### 3. Acessar a Documentação Interativa
+- **Swagger UI:** [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
+- **OpenAPI JSON:** [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+
+---
+
+## 🧪 Testes Automatizados
+
+Para rodar a suíte completa de testes de integração (Spring Boot Test + Testcontainers/PostgreSQL):
 
 ```bash
-docker compose up --build
+./gradlew test
 ```
 
-A API fica disponível em `http://localhost:8080` e o Swagger UI em `http://localhost:8080/swagger-ui/index.html`. Para definir uma chave JWT própria, exporte `JWT_KEY` antes de iniciar o Compose. Encerre com `docker compose down`; para remover também os dados locais do banco, use `docker compose down -v`.
+Os testes cobrem:
+- Carregamento de contexto e validação estrita de esquemas Flyway (`ddl-auto: validate`).
+- Ciclo de vida completo do onboarding em 2 etapas (`/auth/registro` ➔ `PUT /estabelecimento/{id}` ➔ `GET /estabelecimento/me`).
+- Autenticação e bloqueio de credenciais inválidas.
+- Proteção de rotas via `JwtAuthFilter`.
 
-Para configuração de produção, defina `SPRING_PROFILES_ACTIVE=prod`, `DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_KEY` e, opcionalmente, `JWT_EXPIRATION`.
+---
 
-## API de autenticação
+## 📄 Documentação Complementar
 
-### `POST /auth/registro`
-
-Cria um usuário e seu estabelecimento, retornando `201 Created` e `{ "token": "..." }`.
-
-```json
-{
-  "email": "usuario@example.com",
-  "senha": "senha-com-8-ou-mais-caracteres",
-  "estabelecimento": {
-    "nome": "Mercado Central",
-    "documento": "12345678901",
-    "tipoNegocio": "MERCADO",
-    "endereco": "Rua das Flores, 10",
-    "latitude": -23.550520,
-    "longitude": -46.633308
-  }
-}
-```
-
-E-mail já existente retorna `409 Conflict`; campos inválidos retornam `400 Bad Request`.
-
-### `POST /auth/login`
-
-Recebe `{ "email": "...", "senha": "..." }` e retorna `200 OK` com `{ "token": "..." }`. Credenciais inválidas retornam `401 Unauthorized`.
-
-Com a aplicação em execução, a documentação interativa está em `/swagger-ui/index.html` e o contrato OpenAPI em `/v3/api-docs`.
-
-## Testes e CI
-
-Execute `SPRING_PROFILES_ACTIVE=test JWT_KEY='MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=' ./gradlew test` com PostgreSQL disponível em `localhost:5432`.
-
-O workflow GitHub Actions em `.github/workflows/ci.yml` executa automaticamente testes e migrations em PostgreSQL 16 para pushes e pull requests destinados a `main`.
+- [REFERENCIA_INTEGRACAO.md](file:///c:/Users/dkaua/Documents/programação/Maré%20alerta-backend/mare-alerta-backend/REFERENCIA_INTEGRACAO.md): Guia detalhado do contrato frontend-backend e mapeamento de dados operacionais.
