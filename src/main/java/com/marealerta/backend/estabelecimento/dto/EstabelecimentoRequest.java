@@ -1,11 +1,16 @@
 package com.marealerta.backend.estabelecimento.dto;
 
+import com.marealerta.backend.estabelecimento.model.Bairro;
 import com.marealerta.backend.estabelecimento.model.TipoNegocio;
+
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
-
-import java.math.BigDecimal;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -14,22 +19,39 @@ import java.math.BigDecimal;
 @Builder
 public class EstabelecimentoRequest {
 
-    @NotBlank
+    @NotBlank(message = "O nome do estabelecimento é obrigatório")
+    @JsonAlias({"name"})
     private String nome;
 
-    @NotBlank
+    @NotBlank(message = "O documento/CNPJ é obrigatório")
+    @JsonAlias({"cnpj"})
     private String documento;
 
-    @NotNull
-    private TipoNegocio tipoNegocio;
+    @NotNull(message = "O bairro é obrigatório")
+    @JsonAlias({"neighborhood"})
+    private Bairro bairro;
 
-    @NotBlank
-    private String endereco;
+    @JsonAlias({"owner"})
+    private String responsavel;
 
-    @NotNull
-    private BigDecimal latitude;
+    @JsonAlias({"street"})
+    private String logradouro;
 
-    @NotNull
-    private BigDecimal longitude;
+    @JsonAlias({"number"})
+    private String numero;
 
+    private String complemento;
+
+    private String cep;
+
+    @Builder.Default
+    private String municipio = "Belém";
+
+    @Builder.Default
+    private String uf = "PA";
+
+    private String telefone;
+
+    @Builder.Default
+    private TipoNegocio tipoNegocio = TipoNegocio.OUTROS;
 }

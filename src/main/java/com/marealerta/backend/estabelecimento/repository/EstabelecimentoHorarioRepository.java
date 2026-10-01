@@ -11,4 +11,6 @@ public interface EstabelecimentoHorarioRepository extends JpaRepository<Estabele
     List<EstabelecimentoHorario> findByEstabelecimentoId(Long estabelecimentoId);
 
     List<EstabelecimentoHorario> findByEstabelecimentoIdAndDiaSemana(Long estabelecimentoId, Integer diaSemana);
+
+    void deleteByEstabelecimentoId(Long estabelecimentoId);
 }

@@ -2,7 +2,9 @@ package com.marealerta.backend.auth.service;
 import com.marealerta.backend.auth.dto.LoginRequest;
 import com.marealerta.backend.auth.dto.RegisterRequest;
 import com.marealerta.backend.auth.dto.TokenResponse;
+import com.marealerta.backend.estabelecimento.model.Bairro;
 import com.marealerta.backend.estabelecimento.model.Estabelecimento;
+import com.marealerta.backend.estabelecimento.model.TipoNegocio;
 import com.marealerta.backend.estabelecimento.repository.EstabelecimentoRepository;
 import com.marealerta.backend.usuario.model.Usuario;
 import com.marealerta.backend.usuario.repository.UsuarioRepository;
@@ -32,13 +34,22 @@ public class AuthService {
             throw new EmailAlreadyRegisteredException();
         }
 
-        Estabelecimento estab = new Estabelecimento();
-        estab.setNome(register.getEstabelecimento().getNome());
-        estab.setDocumento(register.getEstabelecimento().getDocumento());
-        estab.setTipoNegocio(register.getEstabelecimento().getTipoNegocio());
-        estab.setLatitude(register.getEstabelecimento().getLatitude());
-        estab.setLongitude(register.getEstabelecimento().getLongitude());
-        estab.setEndereco(register.getEstabelecimento().getEndereco());
+        var dto = register.getEstabelecimento();
+        Estabelecimento estab = Estabelecimento.builder()
+                .nome(dto.getNome())
+                .documento(dto.getDocumento())
+                .tipoNegocio(dto.getTipoNegocio() != null ? dto.getTipoNegocio() : TipoNegocio.OUTROS)
+                .responsavel(dto.getResponsavel() != null && !dto.getResponsavel().isBlank() ? dto.getResponsavel() : "Não informado")
+                .bairro(dto.getBairro() != null ? dto.getBairro() : Bairro.MARCO)
+                .logradouro(dto.getLogradouro() != null && !dto.getLogradouro().isBlank() ? dto.getLogradouro() : "Não informado")
+                .numero(dto.getNumero() != null && !dto.getNumero().isBlank() ? dto.getNumero() : "S/N")
+                .complemento(dto.getComplemento())
+                .cep(dto.getCep())
+                .municipio(dto.getMunicipio() != null && !dto.getMunicipio().isBlank() ? dto.getMunicipio() : "Belém")
+                .uf(dto.getUf() != null && !dto.getUf().isBlank() ? dto.getUf() : "PA")
+                .telefone(dto.getTelefone())
+                .ativo(true)
+                .build();
 
         estabelecimentoRepository.save(estab);
 
@@ -50,7 +61,11 @@ public class AuthService {
         usuarioRepository.saveAndFlush(user);
 
         String token = jwtService.gerarT(user);
-        return new TokenResponse(token);
+        return TokenResponse.builder()
+                .token(token)
+                .estabelecimentoId(estab.getId())
+                .email(user.getEmail())
+                .build();
 
     }
 
@@ -66,8 +81,13 @@ public class AuthService {
             Usuario user = (Usuario) auth.getPrincipal();
 
             String token = jwtService.gerarT(user);
+            Long estabId = user.getEstabelecimento() != null ? user.getEstabelecimento().getId() : null;
 
-            return new TokenResponse(token);
+            return TokenResponse.builder()
+                    .token(token)
+                    .estabelecimentoId(estabId)
+                    .email(user.getEmail())
+                    .build();
 
         } catch (BadCredentialsException e) {
             throw new InvalidCredentialsException();

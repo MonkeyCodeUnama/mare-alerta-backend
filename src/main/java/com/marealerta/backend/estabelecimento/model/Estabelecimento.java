@@ -1,6 +1,5 @@
 package com.marealerta.backend.estabelecimento.model;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import org.hibernate.annotations.SQLDelete;
@@ -14,7 +13,10 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -23,42 +25,85 @@ import lombok.Setter;
 @Table(name = "estabelecimento")
 @SQLDelete(sql = "UPDATE estabelecimento SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
 @SQLRestriction("deleted_at IS NULL")
-@Getter 
-@Setter 
+@Getter
+@Setter
+@Builder
 @NoArgsConstructor
+@AllArgsConstructor
 public class Estabelecimento {
 
-    @Id 
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false, length = 100)
     private String nome;
 
-    @Column(length = 20)
+    @Column(nullable = false, length = 20)
     private String documento;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo_negocio", nullable = false, length = 50)
     private TipoNegocio tipoNegocio;
 
-    @Column(nullable = false, precision = 10, scale = 8)
-    private BigDecimal latitude;
+    @Column(nullable = false, length = 150)
+    private String responsavel;
 
-    @Column(nullable = false, precision = 11, scale = 8)
-    private BigDecimal longitude;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 100)
+    private Bairro bairro;
 
+    @Column(nullable = false, length = 255)
+    private String logradouro;
+
+    @Column(nullable = false, length = 20)
+    private String numero;
+
+    @Column(length = 100)
+    private String complemento;
+
+    @Column(length = 10)
+    private String cep;
+
+    @Column(nullable = false, length = 100)
+    private String municipio;
+
+    @Column(nullable = false, length = 2)
+    private String uf;
+
+    @Column(length = 20)
+    private String telefone;
+
+    @Builder.Default
     @Column(nullable = false)
-    private String endereco;
+    private Boolean ativo = true;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    @PrePersist 
+    @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+        if (this.ativo == null) {
+            this.ativo = true;
+        }
+        if (this.municipio == null) {
+            this.municipio = "Belém";
+        }
+        if (this.uf == null) {
+            this.uf = "PA";
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }
