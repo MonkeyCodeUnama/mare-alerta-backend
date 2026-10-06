@@ -5,3 +5,13 @@
 build
 out
 *.iml
+
+### Variaveis de Ambiente e Segredos Locais ###
+.env
+.env.*
+!.env.example
+
+### Documentacao e Arquivos Locais ###
+docs/
+*.md
+!README.md
