@@ -8,8 +8,9 @@ API RESTful do ecossistema **Maré Alerta**, desenvolvida em **Java 21** e **Spr
 
 - **Linguagem & Framework:** Java 21 (LTS) & Spring Boot 4.x
 - **Persistência & ORM:** Spring Data JPA / Hibernate com PostgreSQL 16
-- **Versionamento de Banco:** Flyway Migrations (V1 a V18)
+- **Versionamento de Banco:** Flyway Migrations (V1 a V20)
 - **Segurança:** Spring Security, JWT (HMAC-SHA256) e criptografia de senhas com BCrypt
+- **Gateway de WhatsApp:** Evolution API v2 (Open-source, Baileys via WebSocket)
 - **Documentação Interativa:** OpenAPI 3 / Swagger UI
 - **Build & Automação:** Gradle 9.7.1
 - **Conteinerização:** Docker & Docker Compose
@@ -43,6 +44,8 @@ O banco de dados foi modelado seguindo a **3ª Forma Normal (3FN)**, com integri
 - **`ocorrencias` & `ocorrencia_fotos` (V13, V14, V16):** Registro oficial de sinistros pós-alagamento com protocolo estável, suporte a rascunhos, dados comerciais e anexos de fotos.
 - **`leituras_telemetria` (V15, V17):** Histórico e previsões climáticas com nível de maré, precipitação e variáveis da Open-Meteo (temperatura, velocidade e direção do vento).
 - **`alertas` (V4):** Comunicações de emergência e cotas de alerta emitidas pela Defesa Civil.
+- **`previsoes_chuva_ml` (V19):** Persistência de previsões geradas pelo modelo de IA com `BIGINT`, `TIMESTAMPTZ`, constraints de probabilidade e enum de qualidade (`StatusQualidadeMl`).
+- **`envios_alerta_whatsapp` (V20):** Despacho, controle de fila e histórico de mensagens enviadas via WhatsApp para comércios locais, com status em enum (`StatusEnvioWhatsapp`) e idempotência.
 
 ---
 
@@ -140,11 +143,12 @@ No Linux / macOS:
 ```bash
 ./gradlew bootRun
 ```
-> As migrações Flyway (`V1` a `V18`) são aplicadas automaticamente no boot.
+> As migrações Flyway (`V1` a `V20`) são aplicadas automaticamente no boot.
 
 ### 3. Acessar a Documentação Interativa
 - **Swagger UI:** [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
 - **OpenAPI JSON:** [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+- **Painel Evolution API (WhatsApp):** [http://localhost:8081/manager](http://localhost:8081/manager)
 
 ---
 
@@ -166,4 +170,6 @@ Os testes cobrem:
 
 ## 📄 Documentação Complementar
 
+- **`docs/GUIA_BACKEND.md`**: Guia vivo da arquitetura, convenções, catálogo completo de migrações (V1 a V20), contratos de ML, operação da Evolution API e histórico contínuo de commits.
+- **`docs/IA_PREVISAO_CHUVA_BACKEND.md`**: Especificação técnica das variáveis meteorológicas de Belém e contratos da pipeline de Machine Learning.
 - **`backend-integracao.md`**: Guia de referência técnica do contrato entre frontend e backend, cobrindo o mapeamento de dados operacionais, cotas de alagamento e regras de persistência.
