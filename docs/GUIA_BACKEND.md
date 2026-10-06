@@ -218,6 +218,7 @@ Para garantir **idempotência** (se o servidor cair durante o envio para 50 loja
 6. **Padronização de TIMESTAMPTZ:** Todas as novas tabelas, evoluções de timestamps e contratos DTOs devem utilizar `TIMESTAMPTZ` no PostgreSQL e `java.time.Instant` no Java (ISO-8601 UTC). Isso elimina bugs de fuso horário decorrentes de divergências entre máquinas de desenvolvimento locais (Belém GMT-3), contêineres Docker (UTC) e servidores de produção.
 7. **Uso de BIGINT para Séries Temporais:** Identificadores de tabelas de telemetria, previsões e despachos de mensagens utilizam `BIGINT` (`Long` no Java) para evitar risco de exaustão de sequence.
 8. **Uso de Enum para Estados Finitos:** Status de qualidade, status de envio de WhatsApp e classificações de risco utilizam tipos enumerados para garantir segurança de tipos e contratos explícitos.
+9. **Gestão de Segredos e `.env`:** Arquivos `.env` e variações locais são estritamente ignorados no `.gitignore`. O repositório mantém apenas o `.env.example` como gabarito público de configuração. Em ambiente de produção, segredos como `EVOLUTION_API_KEY` e `JWT_KEY` devem ser injetados via variáveis de ambiente da infraestrutura, sobrepondo os valores de fallback de desenvolvimento.
 
 ---
 
@@ -249,8 +250,10 @@ docker compose up -d postgres evolution_api
 
 | Data | Autor | Resumo das Mudanças | Impacto |
 | :--- | :--- | :--- | :--- |
+| **06/10/2026** | AKIRA-NZR | Proteção estrita de segredos locais: adição de `.env` ao `.gitignore`, criação do modelo `.env.example` e documentação de boas práticas de variáveis de ambiente. | Blindagem contra vazamento de credenciais e segurança de segredos em produção. |
 | **06/10/2026** | AKIRA-NZR | Integração da Evolution API v2 (`evoapicloud/evolution-api:latest`) no `docker-compose.yml` e `application.yaml`, isolada no schema `evolution`. Criação da migração `V20__create_envios_alerta_whatsapp.sql`, entidade `EnvioAlertaWhatsapp`, enum `StatusEnvioWhatsapp` e repositório `EnvioAlertaWhatsappRepository`. Documentação completa de procedimentos de QR Code, testes e anti-ban. | Capacidade de despacho de mensagens no WhatsApp com auditoria, controle de fila e tolerância a falhas. |
 | **06/10/2026** | AKIRA-NZR | Implementação da camada de dados de ML conforme `docs/IA_PREVISAO_CHUVA_BACKEND.md`: migration `V19__create_previsoes_chuva_ml.sql`, entidade `PrevisaoChuvaMl`, repositório `PrevisaoChuvaMlRepository`, enum `StatusQualidadeMl` e tipagem estrita nos DTOs. | Persistência e tipagem de previsões meteorológicas com segurança temporal e integridade relacional. |
 | **05/10/2026** | AKIRA-NZR | Criação do `docs/GUIA_BACKEND.md`. Implementação inicial dos DTOs de ML padronizados com `Instant`/`TIMESTAMPTZ`. Sincronização com `origin/main` (CI/GHCR). | Documentação viva centralizada e alinhamento de timezone do backend. |
 | **02/10/2026** | Andr3Dav1d | Workflow CI para publicação de imagens multi-arquitetura no GHCR (`.github/workflows/ci.yml`). | Pipeline de entrega contínua automatizada. |
 | **01/10/2026** | AKIRA-NZR | Migrações V17 e V18: adição das colunas climáticas Open-Meteo na telemetria e índice único parcial para soft delete de e-mail. DTOs de telemetria e gráficos. | Suporte a dados meteorológicos e correção do histórico V10. |
+
