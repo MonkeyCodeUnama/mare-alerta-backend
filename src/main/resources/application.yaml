@@ -10,3 +10,9 @@ app:
   uploads:
     ocorrencias-dir: uploads/ocorrencias
 
+
+whatsapp:
+  evolution:
+    url: ${WHATSAPP_API_URL:http://localhost:8081}
+    api-key: ${WHATSAPP_API_KEY:marealerta_secret_key_2026}
+    instancia: ${WHATSAPP_INSTANCIA:marealerta_belem}

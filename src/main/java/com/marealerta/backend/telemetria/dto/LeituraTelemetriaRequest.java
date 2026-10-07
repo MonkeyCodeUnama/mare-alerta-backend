@@ -32,6 +32,12 @@ public class LeituraTelemetriaRequest {
 
     private BigDecimal precipitacao;
 
+    private BigDecimal temperatura;
+
+    private BigDecimal ventoVelocidade;
+
+    private BigDecimal ventoDirecao;
+
     @NotNull(message = "A data e hora da leitura são obrigatórias")
     private LocalDateTime dataHora;
 }

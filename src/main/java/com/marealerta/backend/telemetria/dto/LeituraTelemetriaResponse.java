@@ -25,6 +25,9 @@ public class LeituraTelemetriaResponse {
     private TipoRegistroTelemetria tipoRegistro;
     private BigDecimal nivelMare;
     private BigDecimal precipitacao;
+    private BigDecimal temperatura;
+    private BigDecimal ventoVelocidade;
+    private BigDecimal ventoDirecao;
     private LocalDateTime dataHora;
     private LocalDateTime createdAt;
 
@@ -37,6 +40,9 @@ public class LeituraTelemetriaResponse {
                 .tipoRegistro(l.getTipoRegistro())
                 .nivelMare(l.getNivelMare())
                 .precipitacao(l.getPrecipitacao())
+                .temperatura(l.getTemperatura())
+                .ventoVelocidade(l.getVentoVelocidade())
+                .ventoDirecao(l.getVentoDirecao())
                 .dataHora(l.getDataHora())
                 .createdAt(l.getCreatedAt())
                 .build();

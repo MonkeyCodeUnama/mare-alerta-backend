@@ -47,6 +47,15 @@ public class LeituraTelemetria {
     @Column(precision = 5, scale = 2)
     private BigDecimal precipitacao;
 
+    @Column(precision = 4, scale = 1)
+    private BigDecimal temperatura;
+
+    @Column(name = "vento_velocidade", precision = 5, scale = 2)
+    private BigDecimal ventoVelocidade;
+
+    @Column(name = "vento_direcao", precision = 5, scale = 2)
+    private BigDecimal ventoDirecao;
+
     @Column(name = "data_hora", nullable = false)
     private LocalDateTime dataHora;
 

@@ -39,3 +39,10 @@ out/
 ### Documentacao Local ###
 REFERENCIA_INTEGRACAO.md
 /uploads/
+integracao-backend.md
+
+### Variaveis de Ambiente e Segredos Locais ###
+.env
+.env.*
+!.env.example
+
