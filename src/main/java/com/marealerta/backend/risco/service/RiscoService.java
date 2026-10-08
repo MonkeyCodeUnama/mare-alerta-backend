@@ -127,7 +127,7 @@ public class RiscoService {
         Double probChuva = responseMl.getRainProbability();
 
         NivelRisco nivelRisco = calcularRiscoCombinado(nivelMare, probChuva);
-        LocalDateTime horarioPico = instanteAlvo.atZone(ZoneId.systemDefault()).toLocalDateTime();
+        LocalDateTime horarioPico = instanteAlvo.atZone(ZoneId.of("America/Belem")).toLocalDateTime();
         String descricao = gerarDescricaoCenario(nivelRisco, probChuva, nivelMare);
 
         return RiscoResponse.builder()
