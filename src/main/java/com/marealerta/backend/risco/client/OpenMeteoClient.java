@@ -1,12 +1,8 @@
 package com.marealerta.backend.risco.client;
 
 import com.marealerta.backend.risco.dto.OpenMeteoApiResponse;
-import com.marealerta.backend.risco.dto.PrevisaoMlRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Component
 public class OpenMeteoClient {
@@ -19,7 +15,7 @@ public class OpenMeteoClient {
                 .build();
     }
 
-    public PrevisaoMlRequest buscarDadosAtuais(double latitude, double longitude, String localidade) {
+    public DadosMeteo buscarDadosAtuais(double latitude, double longitude, String localidade) {
         OpenMeteoApiResponse response = restClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/forecast")
@@ -36,18 +32,26 @@ public class OpenMeteoClient {
 
         OpenMeteoApiResponse.CurrentWeather weather = response.currentWeather();
 
-        return PrevisaoMlRequest.builder()
-                .localidade(localidade)
-                .instanteReferencia(LocalDateTime.now())
-                .horizonteHoras(1)
-                .temperatura2m(BigDecimal.valueOf(weather.temperature()))
-                .umidadeRelativa2m(BigDecimal.valueOf(80.0)) // Valor padrão/simulado se não mapeado no endpoint
-                .pressaoSuperficie(BigDecimal.valueOf(1013.25))
-                .coberturaNuvens(BigDecimal.ZERO)
-                .velocidadeVento10m(BigDecimal.valueOf(weather.windspeed()))
-                .direcaoVento10m(BigDecimal.valueOf(weather.winddirection()))
-                .precipitacaoObservada1h(BigDecimal.ZERO)
-                .cape(BigDecimal.ZERO)
-                .build();
+        return new DadosMeteo(
+                weather.temperature(),
+                80.0,     // umidade padrão/simulada
+                1013.25,  // pressão padrão
+                0.0,      // nuvens
+                weather.windspeed(),
+                weather.winddirection(),
+                0.0,      // precipitação
+                0.0       // cape
+        );
     }
+
+    public record DadosMeteo(
+            double temperatura,
+            double umidade,
+            double pressao,
+            double nuvens,
+            double ventoVelocidade,
+            double ventoDirecao,
+            double precipitacao,
+            double cape
+    ) {}
 }

@@ -3,6 +3,7 @@ package com.marealerta.backend.risco.dto;
 import java.math.BigDecimal;
 import java.time.Instant;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.marealerta.backend.risco.model.StatusQualidadeMl;
 
 import lombok.AllArgsConstructor;
@@ -18,14 +19,27 @@ import lombok.Setter;
 @AllArgsConstructor
 public class PrevisaoMlResponse {
 
-    private String location;
-    private Instant issuedAt;
-    private Instant targetTime;
-    private Integer horizonHours;
-    private Double rainProbability;
-    private Boolean rainExpected;
-    private BigDecimal expectedPrecipitationMm;
+    @JsonProperty("model_version")
     private String modelVersion;
-    private String dataVersion;
+
+    @JsonProperty("issued_at")
+    private Instant issuedAt;
+
+    @JsonProperty("target_time")
+    private Instant targetTime;
+
+    @JsonProperty("horizon_hours")
+    private Integer horizonHours;
+
+    @JsonProperty("rain_probability")
+    private Double rainProbability;
+
+    @JsonProperty("rain_expected")
+    private Boolean rainExpected;
+
+    @JsonProperty("expected_precipitation_mm")
+    private BigDecimal expectedPrecipitationMm;
+
+    @JsonProperty("quality_status")
     private StatusQualidadeMl qualityStatus;
 }

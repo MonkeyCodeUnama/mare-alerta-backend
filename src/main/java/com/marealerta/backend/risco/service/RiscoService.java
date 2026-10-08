@@ -12,9 +12,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -25,20 +28,57 @@ public class RiscoService {
     private final PrevisaoChuvaMlRepository previsaoChuvaMlRepository;
 
     @Transactional
-    public RiscoResponse processarEObterRiscoParaLocalidade(String localidade){
+    public RiscoResponse processarEObterRiscoParaLocalidade(String localidade) {
+        // Coordenadas de referência para Belém
         double lat = -1.4558;
         double lon = -48.4902;
 
-        PrevisaoMlRequest request = openMeteoClient.buscarDadosAtuais(lat, lon, localidade);
+        // 1. Busca os dados crus da Open-Meteo
+        OpenMeteoClient.DadosMeteo dadosMeteo = openMeteoClient.buscarDadosAtuais(lat, lon, localidade);
 
-        return processarEObterRisco(request);
+        // 2. Mapa de features corrigido para snake_case
+        Map<String, BigDecimal> features = Map.of(
+                "temperatura_2m", BigDecimal.valueOf(dadosMeteo.temperatura()),
+                "umidade_relativa_2m", BigDecimal.valueOf(dadosMeteo.umidade()),
+                "pressao_superficie", BigDecimal.valueOf(dadosMeteo.pressao()),
+                "cobertura_nuvens", BigDecimal.valueOf(dadosMeteo.nuvens()),
+                "velocidade_vento_10m", BigDecimal.valueOf(dadosMeteo.ventoVelocidade()),
+                "direcao_vento_10m", BigDecimal.valueOf(dadosMeteo.ventoDirecao()),
+                "precipitacao_observada_1h", BigDecimal.valueOf(dadosMeteo.precipitacao()),
+                "cape", BigDecimal.valueOf(dadosMeteo.cape())
+        );
+
+        // 3. Mapa de unidades corrigido para snake_case
+        Map<String, String> units = Map.of(
+                "temperatura_2m", "°C",
+                "umidade_relativa_2m", "%",
+                "pressao_superficie", "hPa",
+                "cobertura_nuvens", "%",
+                "velocidade_vento_10m", "km/h",
+                "direcao_vento_10m", "°",
+                "precipitacao_observada_1h", "mm",
+                "cape", "J/kg"
+        );
+
+        // 4. Cria a requisição estruturada
+        PrevisaoMlRequest request = new PrevisaoMlRequest(
+                "rain-hourly-v1",
+                BigDecimal.valueOf(lat),
+                BigDecimal.valueOf(lon),
+                OffsetDateTime.now().toString(),
+                1,
+                features,
+                units
+        );
+
+        return processarEObterRisco(request, localidade);
     }
 
     @Transactional
-    public RiscoResponse processarEObterRisco(PrevisaoMlRequest request) {
+    public RiscoResponse processarEObterRisco(PrevisaoMlRequest request, String localidade) {
         PrevisaoMlResponse responseMl = mlApiClient.solicitarPrevisao(request);
 
-        String estacao = request.getLocalidade() != null ? request.getLocalidade() : "BELEM_CENTRO";
+        String estacao = (localidade != null && !localidade.isBlank()) ? localidade : "BELEM_CENTRO";
         Instant instanteEmissao = responseMl.getIssuedAt() != null ? responseMl.getIssuedAt() : Instant.now();
         Instant instanteAlvo = responseMl.getTargetTime() != null ? responseMl.getTargetTime() : Instant.now();
         Integer horizonteHoras = responseMl.getHorizonHours() != null ? responseMl.getHorizonHours() : 1;
@@ -81,6 +121,4 @@ public class RiscoService {
                 .alertaEmitido(nivelRisco == NivelRisco.ALTO)
                 .build();
     }
-
-
 }
