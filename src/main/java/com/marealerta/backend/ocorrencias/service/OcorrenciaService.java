@@ -31,7 +31,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class OcorrenciaService {
 
-    @Value("${app:uploads.ocorrencias-dir}")
+    @Value("${app.uploads.ocorrencias-dir}")
     private String ocorrenciaDir;
     private final OcorrenciaRepository oRepository;
     private final OcorrenciaFotoRepository ofRepository;
