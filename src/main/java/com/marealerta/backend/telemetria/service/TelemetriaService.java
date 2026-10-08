@@ -1,10 +1,5 @@
 package com.marealerta.backend.telemetria.service;
 
-import com.marealerta.backend.telemetria.service.OpenMeteoClient;
-import com.marealerta.backend.telemetria.dto.LeituraTelemetriaRequest;
-import com.marealerta.backend.telemetria.dto.LeituraTelemetriaResponse;
-import com.marealerta.backend.telemetria.dto.TelemetriaDashboardResponse;
-import com.marealerta.backend.telemetria.service.OpenMeteoClient;
 import com.marealerta.backend.telemetria.dto.LeituraTelemetriaRequest;
 import com.marealerta.backend.telemetria.dto.LeituraTelemetriaResponse;
 import com.marealerta.backend.telemetria.dto.TelemetriaDashboardResponse;
