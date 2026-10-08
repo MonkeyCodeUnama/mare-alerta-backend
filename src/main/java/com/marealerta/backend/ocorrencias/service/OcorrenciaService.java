@@ -1,20 +1,53 @@
 package com.marealerta.backend.ocorrencias.service;
 import com.marealerta.backend.estabelecimento.model.Estabelecimento;
+import com.marealerta.backend.estabelecimento.repository.EstabelecimentoRepository;
+import com.marealerta.backend.ocorrencias.dto.OcorrenciaFotoResponse;
 import com.marealerta.backend.ocorrencias.dto.OcorrenciaRequest;
 import com.marealerta.backend.ocorrencias.dto.OcorrenciaResponse;
 import com.marealerta.backend.ocorrencias.model.Ocorrencia;
+import com.marealerta.backend.ocorrencias.model.OcorrenciaFoto;
+import com.marealerta.backend.ocorrencias.repository.OcorrenciaFotoRepository;
 import com.marealerta.backend.ocorrencias.repository.OcorrenciaRepository;
 import com.marealerta.backend.usuario.model.Usuario;
+import jakarta.persistence.EntityNotFoundException;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.apache.coyote.BadRequestException;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Optional;
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class OcorrenciaService {
 
+    @Value("${app:uploads.ocorrencias-dir}")
+    private String ocorrenciaDir;
     private final OcorrenciaRepository oRepository;
+    private final OcorrenciaFotoRepository ofRepository;
+    private final EstabelecimentoRepository estabelecimentoRepository;
 
+
+    @Transactional
     public OcorrenciaResponse registrarO(Usuario usuario, OcorrenciaRequest ocorrenciaRequest){
-        Estabelecimento estab = usuario.getEstabelecimento();
+        if(usuario == null){
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "usuario nao autenticado");
+        }
+
+        Long estabId = usuario.getEstabelecimento().getId();
+
+        Estabelecimento estab = estabelecimentoRepository.findById(estabId)
+                .orElseThrow(() -> new EntityNotFoundException("estabelecimento nao encontrado"));
 
         long quant= oRepository.countByEstabelecimentoId(estab.getId());
         quant += 1;
@@ -44,4 +77,46 @@ public class OcorrenciaService {
 
                 return response;
     }
+
+     public OcorrenciaFotoResponse adicionarFoto(Usuario usuario, Long ocorrenciaId, MultipartFile arquivo) throws IOException {
+         Ocorrencia ocorrencia = oRepository.findById(ocorrenciaId)
+                 .orElseThrow(() -> new EntityNotFoundException("ocorrencia nao encontrada"));
+        if(ocorrencia == null){
+            throw new BadRequestException();
+        }
+
+        if(ocorrencia.getEstabelecimento().getId() != usuario.getEstabelecimento().getId()){
+            throw new BadRequestException();
+        }
+
+
+        String nomeArquivo = arquivo.getOriginalFilename();
+        String nomeFoto = UUID.randomUUID().toString() + "-" + nomeArquivo;
+
+        Files.createDirectories(Paths.get(ocorrenciaDir));
+
+        Path destino = Paths.get(ocorrenciaDir, nomeFoto);
+
+         try {
+             arquivo.transferTo(destino.toFile());
+         }catch (IOException e){
+             throw new RuntimeException("erro ao salvar arquivo", e);
+         }
+
+         String urlFoto = "uploads/ocorrencias/" + nomeFoto;
+
+         OcorrenciaFoto foto = OcorrenciaFoto.builder()
+                 .nomeArquivo(nomeArquivo)
+                 .urlFoto(urlFoto)
+                 .tamanhoBytes(arquivo.getSize())
+                 .contentType(arquivo.getContentType())
+                 .ocorrencia(ocorrencia)
+                 .build();
+
+         foto = ofRepository.save(foto);
+
+         OcorrenciaFotoResponse response = OcorrenciaFotoResponse.fromEntity(foto);
+
+         return response;
+     }
 }

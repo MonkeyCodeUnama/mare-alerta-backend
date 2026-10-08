@@ -11,6 +11,8 @@ import com.marealerta.backend.telemetria.model.TipoRegistroTelemetria;
 
 public interface LeituraTelemetriaRepository extends JpaRepository<LeituraTelemetria, Long> {
 
+    Optional<LeituraTelemetria> findTop1ByOrderByDataHoraDesc();
+
     List<LeituraTelemetria> findTop10ByEstacaoCodigoOrderByDataHoraDesc(String estacaoCodigo);
 
     Optional<LeituraTelemetria> findTop1ByEstacaoCodigoAndTipoRegistroOrderByDataHoraDesc(

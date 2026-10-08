@@ -8,8 +8,9 @@ API RESTful do ecossistema **Maré Alerta**, desenvolvida em **Java 21** e **Spr
 
 - **Linguagem & Framework:** Java 21 (LTS) & Spring Boot 4.x
 - **Persistência & ORM:** Spring Data JPA / Hibernate com PostgreSQL 16
-- **Versionamento de Banco:** Flyway Migrations (V1 a V15)
+- **Versionamento de Banco:** Flyway Migrations (V1 a V20)
 - **Segurança:** Spring Security, JWT (HMAC-SHA256) e criptografia de senhas com BCrypt
+- **Gateway de WhatsApp:** Evolution API v2 (Open-source, Baileys via WebSocket)
 - **Documentação Interativa:** OpenAPI 3 / Swagger UI
 - **Build & Automação:** Gradle 9.7.1
 - **Conteinerização:** Docker & Docker Compose
@@ -34,14 +35,29 @@ O banco de dados foi modelado seguindo a **3ª Forma Normal (3FN)**, com integri
 ```
 
 ### Principais Entidades e Tabelas:
-- **`estabelecimento` (V1, V11):** Perfil comercial com endereço estruturado (`logradouro`, `numero`, `bairro`, `cep`, `municipio`, `uf`), tipo de negócio e soft delete (`deleted_at`).
-- **`bairro` (Enum oficial):** Catálogo com os bairros oficiais de Belém (Campina, Umarizal, Marco, Cidade Velha, Jurunas, etc.), com índice B-Tree e tolerância a acentos.
+- **`usuario` (V2, V18):** Credenciais, vínculo ao estabelecimento e índice único parcial para e-mails ativos (`WHERE deleted_at IS NULL`), garantindo integridade e reutilização de e-mail em soft delete.
+- **`estabelecimento` (V1, V11, V16):** Perfil comercial com endereço estruturado (`logradouro`, `numero`, `bairro`, `cep`, `municipio`, `uf`), tipo de negócio e soft delete (`deleted_at`), sem dependência de defaults artificiais.
+- **`bairro` (Enum oficial):** Catálogo com os bairros oficiais de Belém (Campina, Umarizal, Marco, Cidade Velha, Jurunas, etc.), com índice B-Tree e mapeamento estrito.
 - **`estabelecimento_horarios` (V3):** Grade de funcionamento semanal normalizada por dia da semana (`dia_semana` 1..7) e horários (`TIME`).
 - **`itens_criticos` (V7):** Relação de bens vulneráveis à cota de alagamento (freezers, motores, estoque no chão, computadores).
 - **`itens_checklist` (V12):** Itens de verificação e checklist preventivo de maré alta com prioridades e status.
-- **`ocorrencias` & `ocorrencia_fotos` (V13, V14):** Registro oficial de sinistros pós-alagamento com protocolo estável, dados comerciais e anexos de fotos com hash SHA-256.
-- **`leituras_telemetria` (V15):** Histórico de cotas observadas, níveis de maré e previsões hidrológicas.
+- **`ocorrencias` & `ocorrencia_fotos` (V13, V14, V16):** Registro oficial de sinistros pós-alagamento com protocolo estável, suporte a rascunhos, dados comerciais e anexos de fotos.
+- **`leituras_telemetria` (V15, V17):** Histórico e previsões climáticas com nível de maré, precipitação e variáveis da Open-Meteo (temperatura, velocidade e direção do vento).
 - **`alertas` (V4):** Comunicações de emergência e cotas de alerta emitidas pela Defesa Civil.
+- **`previsoes_chuva_ml` (V19):** Persistência de previsões geradas pelo modelo de IA com `BIGINT`, `TIMESTAMPTZ`, constraints de probabilidade e enum de qualidade (`StatusQualidadeMl`).
+- **`envios_alerta_whatsapp` (V20):** Despacho, controle de fila e histórico de mensagens enviadas via WhatsApp para comércios locais, com status em enum (`StatusEnvioWhatsapp`) e idempotência.
+
+---
+
+## 🌤️ Modelagem de Telemetria Climática (Open-Meteo)
+
+O ecossistema integra dados meteorológicos da API pública **Open-Meteo** para o município de Belém/PA (`latitude: -1.4558`, `longitude: -48.4902`):
+- **Variáveis de Clima:** Precipitação horária (`precipitacao` em mm/h), temperatura ambiente (`temperatura` em °C) e dinâmica dos ventos (`vento_velocidade` em km/h e `vento_direcao` em graus).
+- **Tipagem de Registros:** Distinção explícita entre dados reais de telemetria (`tipo_registro = OBSERVADO`) e previsões computacionais/IA (`tipo_registro = PREVISTO`).
+- **Contratos DTO:**
+  - `LeituraTelemetriaResponse`: Detalhamento técnico da medição/previsão pontual.
+  - `TelemetriaDashboardResponse`: Agregação de status para o painel principal com indicadores de maré, chuva, vento e cota de risco.
+  - `TelemetriaPontoGraficoDTO`: Estrutura de série temporal compatível diretamente com o componente de visualização gráfica (`TideChart.jsx`).
 
 ---
 
@@ -127,11 +143,12 @@ No Linux / macOS:
 ```bash
 ./gradlew bootRun
 ```
-> As migrações Flyway (`V1` a `V15`) são aplicadas automaticamente no boot.
+> As migrações Flyway (`V1` a `V20`) são aplicadas automaticamente no boot.
 
 ### 3. Acessar a Documentação Interativa
 - **Swagger UI:** [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
 - **OpenAPI JSON:** [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+- **Painel Evolution API (WhatsApp):** [http://localhost:8081/manager](http://localhost:8081/manager)
 
 ---
 
@@ -153,4 +170,6 @@ Os testes cobrem:
 
 ## 📄 Documentação Complementar
 
+- **`docs/GUIA_BACKEND.md`**: Guia vivo da arquitetura, convenções, catálogo completo de migrações (V1 a V20), contratos de ML, operação da Evolution API e histórico contínuo de commits.
+- **`docs/IA_PREVISAO_CHUVA_BACKEND.md`**: Especificação técnica das variáveis meteorológicas de Belém e contratos da pipeline de Machine Learning.
 - **`backend-integracao.md`**: Guia de referência técnica do contrato entre frontend e backend, cobrindo o mapeamento de dados operacionais, cotas de alagamento e regras de persistência.

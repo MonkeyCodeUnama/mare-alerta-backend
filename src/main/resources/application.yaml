@@ -6,3 +6,17 @@ spring:
 jwt:
   expiration: ${JWT_EXPIRATION:9000000}
   key: ${JWT_KEY:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
+app:
+  uploads:
+    ocorrencias-dir: uploads/ocorrencias
+
+
+whatsapp:
+  evolution:
+    url: ${WHATSAPP_API_URL:http://localhost:8081}
+    api-key: ${WHATSAPP_API_KEY:marealerta_secret_key_2026}
+    instancia: ${WHATSAPP_INSTANCIA:marealerta_belem}
+
+ia:
+  chuva:
+    url: ${IA_CHUVA_URL:http://127.0.0.1:8000/v1/predict}
