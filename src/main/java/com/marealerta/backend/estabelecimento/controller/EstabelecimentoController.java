@@ -10,19 +10,23 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import com.marealerta.backend.estabelecimento.dto.EstabelecimentoAtualizacaoRequest;
 import com.marealerta.backend.estabelecimento.dto.EstabelecimentoResponse;
 import com.marealerta.backend.estabelecimento.service.EstabelecimentoService;
+import com.marealerta.backend.usuario.model.Usuario;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/estabelecimento")
 @RequiredArgsConstructor
 @Tag(name = "Estabelecimento", description = "Endpoints de gerenciamento e perfil do estabelecimento comercial")
+@SecurityRequirement(name = "bearerAuth")
 public class EstabelecimentoController {
 
     private final EstabelecimentoService estabelecimentoService;
@@ -38,21 +42,22 @@ public class EstabelecimentoController {
 
     @Operation(summary = "Buscar estabelecimento por ID")
     @GetMapping("/{id}")
-    public ResponseEntity<EstabelecimentoResponse> buscarPorId(@PathVariable Long id) {
-        return ResponseEntity.ok(estabelecimentoService.buscarPorId(id));
+    public ResponseEntity<EstabelecimentoResponse> buscarPorId(@AuthenticationPrincipal Usuario usuario, @PathVariable Long id) {
+        return ResponseEntity.ok(estabelecimentoService.buscarPorIdDoUsuario(usuario, id));
     }
 
     @Operation(summary = "Atualizar perfil do estabelecimento (Etapa 2 do cadastro)")
     @PutMapping("/{id}")
     public ResponseEntity<EstabelecimentoResponse> atualizar(
+            @AuthenticationPrincipal Usuario usuario,
             @PathVariable Long id,
             @RequestBody EstabelecimentoAtualizacaoRequest request) {
-        return ResponseEntity.ok(estabelecimentoService.atualizar(id, request));
+        return ResponseEntity.ok(estabelecimentoService.atualizarDoUsuario(usuario, id, request));
     }
 
     @Operation(summary = "Listar todos os estabelecimentos ativos")
     @GetMapping
-    public ResponseEntity<List<EstabelecimentoResponse>> listar() {
-        return ResponseEntity.ok(estabelecimentoService.listarTodos());
+    public ResponseEntity<List<EstabelecimentoResponse>> listar(@AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(List.of(estabelecimentoService.buscarPorEmailUsuario(usuario.getEmail())));
     }
 }

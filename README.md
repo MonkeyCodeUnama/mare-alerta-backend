@@ -51,7 +51,7 @@ O banco de dados foi modelado seguindo a **3ª Forma Normal (3FN)**, com integri
 
 ## 🌤️ Modelagem de Telemetria Climática (Open-Meteo)
 
-O ecossistema integra dados meteorológicos da API pública **Open-Meteo** para o município de Belém/PA (`latitude: -1.4558`, `longitude: -48.4902`):
+O ecossistema integra dados meteorológicos horários da API pública **Open-Meteo** para o município de Belém/PA (`latitude: -1.4558`, `longitude: -48.5044`), no ponto de referência aceito pelo serviço de previsão ML:
 - **Variáveis de Clima:** Precipitação horária (`precipitacao` em mm/h), temperatura ambiente (`temperatura` em °C) e dinâmica dos ventos (`vento_velocidade` em km/h e `vento_direcao` em graus).
 - **Tipagem de Registros:** Distinção explícita entre dados reais de telemetria (`tipo_registro = OBSERVADO`) e previsões computacionais/IA (`tipo_registro = PREVISTO`).
 - **Contratos DTO:**
@@ -123,6 +123,16 @@ Tela 2: /estabelecimento (Completar)
 ---
 
 ## 🚀 Execução Local
+
+### Integração do Frontend
+
+- API local: `http://localhost:8080`
+- Origens CORS permitidas por padrão: `http://localhost:5173` e `https://marealerta.andr3dav1d.dev`.
+- Para adicionar ou substituir origens, configure `APP_CORS_ALLOWED_ORIGINS` como lista separada por vírgulas.
+- Envie `Authorization: Bearer <token>` nas rotas de estabelecimento, ocorrências e criação de alertas. Cadastro/login e leitura de alertas são públicos.
+- A listagem autenticada de estabelecimentos retorna somente o estabelecimento associado ao usuário.
+- `GET /risco/atual` depende de acesso à Open-Meteo e ao serviço de previsão ML configurado em `IA_CHUVA_URL`; indisponibilidade é retornada como `503`.
+- Contratos completos: `http://localhost:8080/swagger-ui/index.html` e `http://localhost:8080/v3/api-docs`.
 
 ### Pré-requisitos
 - **Java 21** instalado e configurado no `JAVA_HOME`.

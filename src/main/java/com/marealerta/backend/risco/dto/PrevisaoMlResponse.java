@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.marealerta.backend.risco.model.StatusQualidadeMl;
 
 import lombok.AllArgsConstructor;
@@ -26,6 +27,7 @@ public class PrevisaoMlResponse {
     private Instant issuedAt;
 
     @JsonProperty("target_time")
+    @JsonAlias("window_end")
     private Instant targetTime;
 
     @JsonProperty("horizon_hours")

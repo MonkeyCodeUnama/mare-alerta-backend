@@ -20,7 +20,7 @@ public class MlApiCliente {
     private final ObjectMapper objectMapper;
     private final String mlApiUrl;
 
-    public MlApiCliente(ObjectMapper objectMapper, @Value("${IA_CHUVA_URL:http://127.0.0.1:8000/v1/predict}") String mlApiUrl){
+    public MlApiCliente(ObjectMapper objectMapper, @Value("${IA_CHUVA_URL:https://ma-ai.andr3dav1d.dev/v1/predict}") String mlApiUrl){
         this.objectMapper = objectMapper;
         this.mlApiUrl = mlApiUrl;
         this.httpClient = HttpClient.newBuilder()

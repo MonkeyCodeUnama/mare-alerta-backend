@@ -19,7 +19,7 @@ import lombok.Setter;
 @Builder
 public class AlertaRequest {
 
-    @NotNull(message = "O ID do estabelecimento é obrigatório")
+    // Mantido como campo compatível com clientes antigos; a API usa o estabelecimento do JWT.
     private Long estabelecimentoId;
 
     @NotNull(message = "O nível de risco é obrigatório")
