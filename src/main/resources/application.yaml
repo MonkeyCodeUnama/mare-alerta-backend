@@ -8,7 +8,7 @@ jwt:
   key: ${JWT_KEY:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
 app:
   uploads:
-    ocorrencias-dir: uploads/ocorrencias
+    ocorrencias-dir: /app/uploads/ocorrencias
 
 
 whatsapp:
