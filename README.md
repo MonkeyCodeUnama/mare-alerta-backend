@@ -107,6 +107,62 @@ Tela 2: /estabelecimento (Completar)
 
 ---
 
+## 🛰️ 1. Módulo Telemetria (`/telemetria`)
+
+O módulo de **Telemetria** é responsável pela recolha, consolidação e estruturação dos dados ambientais em tempo real (temperatura, vento, chuva e nível do rio).
+
+### Responsabilidades principais:
+- Consumir dados meteorológicos e oceânicos do fornecedor externo (**Open-Meteo**).
+- Agregar leituras de estações e sensores locais.
+- Servir os dados consolidados para o dashboard do sistema e para outros módulos internos.
+
+### DTO Principal: `TelemetriaDashboardResponse`
+Estrutura de resposta anotada com Lombok, disponibilizando métodos de acesso aos sensores:
+- `getTemperatura()`
+- `getVentoVelocidade()`
+- `getVentoDirecao()`
+- `getChuvaAtual()`
+- `getNivelAtual()`
+- `getEstacaoCodigo()`
+
+### Endpoints REST:
+| Método | Rota | Descrição |
+| :--- | :--- | :--- |
+| `GET` | `/telemetria/dashboard` | Retorna o estado atual dos indicadores ambientais consolidados. |
+
+---
+
+## 🤖 2. Módulo Risco (`/risco`) & Integração ML
+
+O módulo de **Risco** orquestra o cálculo da probabilidade de alagamento na região metropolitana de Belém/PA. Ele combina os dados do `TelemetriaService` com o modelo preditivo de Machine Learning hospedado no serviço **FastAPI** (`rain-hourly-v1`).
+
+### Fluxo de Execução do `RiscoService`:
+1. **Recolha de Dados:** Invoca o `TelemetriaService` para obter o `TelemetriaDashboardResponse` atual, evitando chamadas redundantes a APIs externas.
+2. **Mapeamento de Features:** Converte as métricas de telemetria no formato `snake_case` exigido pelo modelo de ML:
+  - `temperature_2m`
+  - `wind_speed_10m`
+  - `precipitation`
+  - `relative_humidity_2m`
+  - `pressure_msl`
+  - `cape`
+3. **Invocação da API ML:** Envia os dados estruturados via cliente Feign/HTTP (`MlApiCliente`).
+4. **Persistência:** Guarda a previsão retornada na entidade `PrevisaoChuvaMl` no banco de dados para históricos e auditoria de acurácia.
+5. **Classificação do Risco:** Cruza a probabilidade calculada pelo modelo com o nível atual da maré em metros, definindo o nível de risco final (`BAIXO`, `MEDIO` ou `ALTO`).
+
+### Endpoints REST:
+| Método | Rota | Parâmetros | Descrição |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/risco/atual` | `localidade` (opcional, default: `BELEM_CENTRO`) | Processa a telemetria e calcula o risco atual para a localidade. |
+
+---
+
+## 🔒 3. Integração, CORS e Segurança
+
+- **Integração do Service:** O `RiscoService` comunica diretamente com o `TelemetriaService` via injeção de dependências do Spring.
+- **CORS Global:** Gerido pelo bean `CorsConfig.java` e ativado na `SecurityFilterChain` (`SecurityConfig.java`) através de `.cors(Customizer.withDefaults())`.
+- **OpenAPI / Swagger UI:** Módulos documentados com anotações `@Tag`, `@Operation` e `@ApiResponse` (dependência `springdoc-openapi-starter-webmvc-ui` v2.5.0).
+- **Acesso à Documentação:** `/swagger-ui.html`, `/swagger-ui/**` e `/v3/api-docs/**` estão configurados como públicos no Spring Security.
+
 ## 📡 Resumo dos Endpoints da API
 
 | Método | Rota | Descrição | Autenticação |
