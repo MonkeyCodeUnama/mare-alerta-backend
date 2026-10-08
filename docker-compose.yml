@@ -60,6 +60,8 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_URL: jdbc:postgresql://postgres:5432/marealerta_dev
@@ -69,6 +71,7 @@ services:
       WHATSAPP_API_URL: http://evolution_api:8080
       WHATSAPP_API_KEY: ${EVOLUTION_API_KEY:-marealerta_secret_key_2026}
       WHATSAPP_INSTANCIA: marealerta_belem
+      IA_CHUVA_URL: http://host.docker.internal:8000/v1/predict
 
 volumes:
   marealerta_pg_data:
