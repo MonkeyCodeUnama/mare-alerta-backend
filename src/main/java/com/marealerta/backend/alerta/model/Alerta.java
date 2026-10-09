@@ -2,6 +2,7 @@ package com.marealerta.backend.alerta.model;
 
 import java.time.LocalDateTime;
 
+import lombok.AllArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
