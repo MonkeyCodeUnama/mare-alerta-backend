@@ -98,6 +98,7 @@ class RiscoServiceTest {
         assertThat(salva.getEstacaoCodigo()).isEqualTo("BELEM_CENTRO");
         assertThat(salva.getProbabilidadeChuva()).isEqualTo(0.65);
         assertThat(salva.getChuvaEsperada()).isTrue();
+        assertThat(salva.getStatusQualidade()).isEqualTo(StatusQualidadeMl.OK);
     }
 
     @Test
@@ -173,5 +174,52 @@ class RiscoServiceTest {
         assertThat(response.getAlertaEmitido()).isFalse();
         assertThat(response.getDescricaoCenario()).contains("Condições normais");
     }
-}
 
+    @Test
+    @DisplayName("Deve acionar fallback heurístico com status DEGRADED quando serviço de ML falhar")
+    void deveAcionarFallbackHeuristicoQuandoMlFalhar() {
+        TelemetriaDashboardResponse telemetriaComChuva = TelemetriaDashboardResponse.builder()
+                .estacaoCodigo("BELEM-CENTRO")
+                .nivelAtual(BigDecimal.valueOf(2.80))
+                .chuvaAtual(BigDecimal.valueOf(25.0))
+                .build();
+
+        when(telemetriaService.obterDashboard()).thenReturn(telemetriaComChuva);
+        when(mlApiClient.solicitarPrevisao(any(PrevisaoMlRequest.class)))
+                .thenThrow(new RuntimeException("Connection refused - FastAPI offline"));
+
+        RiscoResponse response = riscoService.processarEObterRiscoParaLocalidade("BELEM_CENTRO");
+
+        assertThat(response).isNotNull();
+        assertThat(response.getNivelRisco()).isIn(NivelRisco.MEDIO, NivelRisco.ALTO);
+        assertThat(response.getProbabilidadeChuva()).isNotNull();
+
+        ArgumentCaptor<PrevisaoChuvaMl> captor = ArgumentCaptor.forClass(PrevisaoChuvaMl.class);
+        verify(previsaoChuvaMlRepository).save(captor.capture());
+        PrevisaoChuvaMl salva = captor.getValue();
+        assertThat(salva.getStatusQualidade()).isEqualTo(StatusQualidadeMl.DEGRADADO);
+        assertThat(salva.getVersaoModelo()).isEqualTo("fallback-heuristic-v1");
+    }
+
+    @Test
+    @DisplayName("Deve enviar feature_time truncado para hora exata UTC exigido pelo runtime da IA")
+    void deveTruncarFeatureTimeParaHoraExataUtc() {
+        when(telemetriaService.obterDashboard()).thenReturn(telemetriaPadrao);
+        when(mlApiClient.solicitarPrevisao(any(PrevisaoMlRequest.class))).thenReturn(
+                PrevisaoMlResponse.builder()
+                        .rainProbability(0.2)
+                        .rainExpected(false)
+                        .build()
+        );
+
+        riscoService.processarEObterRiscoParaLocalidade("BELEM_CENTRO");
+
+        ArgumentCaptor<PrevisaoMlRequest> captor = ArgumentCaptor.forClass(PrevisaoMlRequest.class);
+        verify(mlApiClient).solicitarPrevisao(captor.capture());
+        PrevisaoMlRequest sentRequest = captor.getValue();
+
+        assertThat(sentRequest.featureTime()).matches(".+T\\d{2}:00:00Z");
+        assertThat(sentRequest.schemaVersion()).isEqualTo("rain-hourly-v1");
+        assertThat(sentRequest.horizonHours()).isEqualTo(1);
+    }
+}
