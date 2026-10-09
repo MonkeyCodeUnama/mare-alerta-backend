@@ -5,8 +5,6 @@ import com.marealerta.backend.risco.dto.PrevisaoMlResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
-
-import java.lang.runtime.ObjectMethods;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -20,7 +18,7 @@ public class MlApiCliente {
     private final ObjectMapper objectMapper;
     private final String mlApiUrl;
 
-    public MlApiCliente(ObjectMapper objectMapper, @Value("${IA_CHUVA_URL:http://127.0.0.1:8000/v1/predict}") String mlApiUrl){
+    public MlApiCliente(ObjectMapper objectMapper, @Value("${ia.chuva.url:${IA_CHUVA_URL:http://127.0.0.1:8000/v1/predict}}") String mlApiUrl){
         this.objectMapper = objectMapper;
         this.mlApiUrl = mlApiUrl;
         this.httpClient = HttpClient.newBuilder()

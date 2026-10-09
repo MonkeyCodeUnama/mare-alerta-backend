@@ -10,6 +10,7 @@ import com.marealerta.backend.risco.repository.PrevisaoChuvaMlRepository;
 import com.marealerta.backend.telemetria.dto.TelemetriaDashboardResponse;
 import com.marealerta.backend.telemetria.service.TelemetriaService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,11 +19,15 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class RiscoService {
 
     private final MlApiCliente mlApiClient;
@@ -82,11 +87,15 @@ public class RiscoService {
                 Map.entry("precipitation", "mm")
         );
 
+        String featureTime = OffsetDateTime.now(ZoneOffset.UTC)
+                .truncatedTo(ChronoUnit.HOURS)
+                .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+
         PrevisaoMlRequest request = new PrevisaoMlRequest(
                 "rain-hourly-v1",
                 BigDecimal.valueOf(lat),
                 BigDecimal.valueOf(lon),
-                OffsetDateTime.now().toString(),
+                featureTime,
                 1,
                 features,
                 units
@@ -101,11 +110,21 @@ public class RiscoService {
             telemetria = telemetriaService.obterDashboard();
         }
 
-        PrevisaoMlResponse responseMl = mlApiClient.solicitarPrevisao(request);
+        PrevisaoMlResponse responseMl;
+        StatusQualidadeMl statusQualidade;
+
+        try {
+            responseMl = mlApiClient.solicitarPrevisao(request);
+            statusQualidade = (responseMl.getQualityStatus() != null) ? responseMl.getQualityStatus() : StatusQualidadeMl.OK;
+        } catch (Exception ex) {
+            log.warn("Serviço de Machine Learning indisponível ou com falha. Acionando fallback heurístico: {}", ex.getMessage());
+            responseMl = criarPrevisaoFallback(telemetria);
+            statusQualidade = StatusQualidadeMl.DEGRADADO;
+        }
 
         String estacao = (localidade != null && !localidade.isBlank()) ? localidade : "BELEM_CENTRO";
         Instant instanteEmissao = responseMl.getIssuedAt() != null ? responseMl.getIssuedAt() : Instant.now();
-        Instant instanteAlvo = responseMl.getTargetTime() != null ? responseMl.getTargetTime() : Instant.now();
+        Instant instanteAlvo = responseMl.getTargetTime() != null ? responseMl.getTargetTime() : Instant.now().plus(1, ChronoUnit.HOURS);
         Integer horizonteHoras = responseMl.getHorizonHours() != null ? responseMl.getHorizonHours() : 1;
 
         PrevisaoChuvaMl entidade = PrevisaoChuvaMl.builder()
@@ -117,17 +136,21 @@ public class RiscoService {
                 .chuvaEsperada(responseMl.getRainExpected())
                 .precipitacaoEstimadaMm(responseMl.getExpectedPrecipitationMm())
                 .versaoModelo(responseMl.getModelVersion() != null ? responseMl.getModelVersion() : "v1.0.0")
-                .statusQualidade(responseMl.getQualityStatus() != null ? responseMl.getQualityStatus() : StatusQualidadeMl.OK)
+                .statusQualidade(statusQualidade)
                 .criadoEm(Instant.now())
                 .build();
 
-        previsaoChuvaMlRepository.save(entidade);
+        try {
+            previsaoChuvaMlRepository.save(entidade);
+        } catch (Exception ex) {
+            log.warn("Falha ao salvar histórico de previsão ML: {}", ex.getMessage());
+        }
 
         BigDecimal nivelMare = telemetria.getNivelAtual();
         Double probChuva = responseMl.getRainProbability();
 
         NivelRisco nivelRisco = calcularRiscoCombinado(nivelMare, probChuva);
-        LocalDateTime horarioPico = instanteAlvo.atZone(ZoneId.systemDefault()).toLocalDateTime();
+        LocalDateTime horarioPico = instanteAlvo.atZone(ZoneId.of("America/Belem")).toLocalDateTime();
         String descricao = gerarDescricaoCenario(nivelRisco, probChuva, nivelMare);
 
         return RiscoResponse.builder()
@@ -138,6 +161,34 @@ public class RiscoService {
                 .descricaoCenario(descricao)
                 .horarioPicoPrevisto(horarioPico)
                 .alertaEmitido(nivelRisco == NivelRisco.ALTO)
+                .build();
+    }
+
+    private PrevisaoMlResponse criarPrevisaoFallback(TelemetriaDashboardResponse telemetria) {
+        BigDecimal chuva = (telemetria != null && telemetria.getChuvaAtual() != null) ? telemetria.getChuvaAtual() : BigDecimal.ZERO;
+        double chuvaVal = chuva.doubleValue();
+
+        double prob;
+        if (chuvaVal >= 20.0) {
+            prob = 0.85;
+        } else if (chuvaVal > 0.0) {
+            prob = 0.50;
+        } else {
+            prob = 0.15;
+        }
+
+        Instant agora = Instant.now();
+        Instant alvo = agora.plus(1, ChronoUnit.HOURS);
+
+        return PrevisaoMlResponse.builder()
+                .modelVersion("fallback-heuristic-v1")
+                .issuedAt(agora)
+                .targetTime(alvo)
+                .horizonHours(1)
+                .rainProbability(prob)
+                .rainExpected(prob >= 0.50)
+                .expectedPrecipitationMm(chuva)
+                .qualityStatus(StatusQualidadeMl.DEGRADADO)
                 .build();
     }
 

@@ -81,11 +81,11 @@ src/main/java/com/marealerta/backend/
 | :--- | :---: | :---: | :--- |
 | **`auth`** | Concluído | Concluído | 100% funcional. Registro emite JWT e cria estabelecimento inicial. |
 | **`estabelecimento`** | Concluído | Concluído | 100% funcional. Suporta onboarding em 2 etapas com aliases React. |
-| **`telemetria`** | Concluído (V15, V17) | Pendente Service de Ingestão | Modelagem pronta para Open-Meteo. DTOs atendem dashboard e gráficos. |
-| **`ocorrencias`** | Concluído (V5, V13, V14) | Service Parcial / Controller Esqueleto | Modelagem pronta com persistência de sinistros e fotos. |
+| **`telemetria`** | Concluído (V15, V17) | Concluído | 100% funcional. `OpenMeteoClient` sincroniza dados meteorológicos de Belém e gera pontos de gráfico e métricas do dashboard. |
+| **`ocorrencias`** | Concluído (V5, V13, V14) | Concluído | 100% funcional. `OcorrenciaService` gera protocolo `OC-{estab}-{quant}`, persiste sinistros e gerencia upload de fotos em disco. |
 | **`checklist`** | Concluído (V12) | Pendente | Modelagem pronta com prioridades e status. |
-| **`alerta`** | Concluído (V4, V20) | Esqueleto Service/Client | Modelagem de alertas e tabela de despacho de WhatsApp (V20) concluídas. Evolution API em execução no Docker. |
-| **`risco` (ML)** | Concluído (V19, Entidade, Repo, DTOs) | Esqueleto | Contratos e persistência implementados com `TIMESTAMPTZ`, `BIGINT`, enum `StatusQualidadeMl` e sem defaults artificiais conforme `docs/IA_PREVISAO_CHUVA_BACKEND.md`. |
+| **`alerta`** | Concluído (V4, V20) | Esqueleto Service/Client | Modelagem de alertas e tabela de despacho de WhatsApp (V20) concluídas. Evolution API em execução no Docker. Telefonia mapeada a partir de `Estabelecimento.telefone`. |
+| **`risco` (ML)** | Concluído (V19, Entidade, Repo, DTOs) | Concluído | 100% funcional. Integrado ao microserviço FastAPI (`mare-alerta-ia`), com `feature_time` truncado em UTC, tratamento de `window_end`, e fallback gracioso (`DEGRADADO`) em caso de indisponibilidade da IA. |
 
 ---
 
@@ -137,10 +137,15 @@ Conforme a especificação em `docs/IA_PREVISAO_CHUVA_BACKEND.md`, o módulo `ri
 2. **Repositório JPA (`PrevisaoChuvaMlRepository`):**
    - Métodos otimizados para busca de previsões por janela de horizonte (`buscarPrevisoesJanela`).
    - Busca da última previsão emitida válida para um determinado instante (`buscarUltimaPrevisaoValida`).
-3. **Contratos DTOs (`com.marealerta.backend.risco.dto`):**
-   - `PrevisaoMlRequest`: Entrada para inferência/treinamento com coordenadas de Belém (`-1.4558, -48.5044`) e variáveis auditadas (`temperatura2m`, `umidadeRelativa2m`, `pressaoSuperficie`, `coberturaNuvens`, `velocidadeVento10m`, `direcaoVento10m`, `precipitacaoObservada1h`, `cape`).
-   - `PrevisaoMlResponse`: Saída padronizada de inferência com `Instant` e `StatusQualidadeMl`.
-   - `RiscoResponse`: Visão consolidada para dashboard e alertas de comerciantes (`nivelRisco`, `probabilidadeChuva`, `nivelMarePrevistoMetros`, `horarioPicoPrevisto`).
+3. **Contratos DTOs e Alinhamento com a API de IA (`mare-alerta-ia`):**
+   - O microserviço preditivo em Python FastAPI expõe a rota `POST /v1/predict` aceitando o esquema `rain-hourly-v1`.
+   - `PrevisaoMlRequest`: Transmite as 20 features atmosféricas de Belém em formato numérico e dicionário de unidades. **Requisito estrito do modelo:** o campo `feature_time` é truncado para a hora cheia em UTC (`OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.HOURS)`), evitando erro HTTP 422 (`time != time.floor('h')`).
+   - `PrevisaoMlResponse`: Mapeia a resposta da IA com `@JsonIgnoreProperties(ignoreUnknown = true)` para tolerar metadados adicionais (`decision_threshold`, `data_version`, `target_source`, `quality`) e `@JsonAlias({"window_end", "target_time"})` para capturar a janela preditiva.
+   - `RiscoResponse`: Visão consolidada para dashboard e alertas de comerciantes (`nivelRisco`, `probabilidadeChuva`, `nivelMarePrevistoMetros`, `horarioPicoPrevisto`), com fuso horário fixado em `America/Belem`.
+4. **Resiliência e Fallback Gracioso:**
+   - Em caso de falha de comunicação ou timeout com o serviço de Machine Learning, o `RiscoService` não interrompe a aplicação nem retorna HTTP 500.
+   - Aciona o método `criarPrevisaoFallback(...)` que estima probabilidade e precipitação a partir dos dados observados da telemetria Open-Meteo.
+   - A previsão é persistida na tabela `previsoes_chuva_ml` com `statusQualidade = StatusQualidadeMl.DEGRADADO` e versão `fallback-heuristic-v1`, mantendo a rastreabilidade e integridade para a Defesa Civil.
 
 ---
 
@@ -250,6 +255,7 @@ docker compose up -d postgres evolution_api
 
 | Data | Autor | Resumo das Mudanças | Impacto |
 | :--- | :--- | :--- | :--- |
+| **08/10/2026** | AKIRA-NZR | Alinhamento do contrato do microserviço de ML (`mare-alerta-ia`), com truncamento estrito de `feature_time` para hora cheia UTC, anotação `@JsonIgnoreProperties` e mapeamento de `window_end` em `PrevisaoMlResponse`. Implementação de fallback gracioso no `RiscoService` com status `DEGRADADO` para tolerância a falhas na IA. Definição do envio de alertas WhatsApp associado aos telefones de `Estabelecimento.telefone` por bairro. Criação de 22 testes unitários automatizados para `ocorrencias`, `risco` e `telemetria`. | Robustez operacional de ponta a ponta: tolerância a falhas na IA, conformidade de contratos e cobertura de testes automatizados com 100% de sucesso. |
 | **06/10/2026** | AKIRA-NZR | Proteção estrita de segredos locais: adição de `.env` ao `.gitignore`, criação do modelo `.env.example` e documentação de boas práticas de variáveis de ambiente. | Blindagem contra vazamento de credenciais e segurança de segredos em produção. |
 | **06/10/2026** | AKIRA-NZR | Integração da Evolution API v2 (`evoapicloud/evolution-api:latest`) no `docker-compose.yml` e `application.yaml`, isolada no schema `evolution`. Criação da migração `V20__create_envios_alerta_whatsapp.sql`, entidade `EnvioAlertaWhatsapp`, enum `StatusEnvioWhatsapp` e repositório `EnvioAlertaWhatsappRepository`. Documentação completa de procedimentos de QR Code, testes e anti-ban. | Capacidade de despacho de mensagens no WhatsApp com auditoria, controle de fila e tolerância a falhas. |
 | **06/10/2026** | AKIRA-NZR | Implementação da camada de dados de ML conforme `docs/IA_PREVISAO_CHUVA_BACKEND.md`: migration `V19__create_previsoes_chuva_ml.sql`, entidade `PrevisaoChuvaMl`, repositório `PrevisaoChuvaMlRepository`, enum `StatusQualidadeMl` e tipagem estrita nos DTOs. | Persistência e tipagem de previsões meteorológicas com segurança temporal e integridade relacional. |
