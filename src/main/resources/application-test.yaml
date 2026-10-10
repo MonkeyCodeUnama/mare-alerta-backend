@@ -10,3 +10,9 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: false
+
+security:
+  rate-limit:
+    capacity: 10000
+    refill-tokens: 10000
+    refill-duration-seconds: 1
