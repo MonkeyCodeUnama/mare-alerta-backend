@@ -5,11 +5,17 @@ spring:
     active: dev
 jwt:
   expiration: ${JWT_EXPIRATION:9000000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
   key: ${JWT_KEY:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
 app:
   uploads:
     ocorrencias-dir: uploads/ocorrencias
 
+security:
+  rate-limit:
+    capacity: ${RATE_LIMIT_CAPACITY:60}
+    refill-tokens: ${RATE_LIMIT_REFILL_TOKENS:60}
+    refill-duration-seconds: ${RATE_LIMIT_REFILL_DURATION_SECONDS:60}
 
 whatsapp:
   evolution:
