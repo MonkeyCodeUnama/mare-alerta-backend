@@ -35,9 +35,11 @@ src/main/java/com/marealerta/backend/
 │   ├── dto/             # LoginRequest, RegisterRequest, TokenResponse
 │   └── service/         # AuthService, JwtService, UserDetailsServiceImpl
 ├── checklist/           # Checklist preventivo de mitigação de danos
+│   ├── controller/      # Endpoints (/checklists, /checklists/registrar, /checklists/listar)
 │   ├── dto/             # ItemChecklistRequest, ItemChecklistResponse
 │   ├── model/           # ItemChecklist, PrioridadeChecklist, StatusChecklist
-│   └── repository/      # ItemChecklistRepository
+│   ├── repository/      # ItemChecklistRepository
+│   └── service/         # ChecklistService
 ├── estabelecimento/     # Perfil comercial do comerciante e endereçamento
 │   ├── controller/      # Endpoints (/estabelecimento, /estabelecimento/me, /estabelecimento/{id})
 │   ├── dto/             # EstabelecimentoRequest, EstabelecimentoAtualizacaoRequest, EstabelecimentoResponse
@@ -83,9 +85,9 @@ src/main/java/com/marealerta/backend/
 | **`estabelecimento`** | Concluído | Concluído | 100% funcional. Suporta onboarding em 2 etapas com aliases React. |
 | **`telemetria`** | Concluído (V15, V17) | Concluído | 100% funcional. `OpenMeteoClient` sincroniza dados meteorológicos de Belém e gera pontos de gráfico e métricas do dashboard. |
 | **`ocorrencias`** | Concluído (V5, V13, V14) | Concluído | 100% funcional. `OcorrenciaService` gera protocolo `OC-{estab}-{quant}`, persiste sinistros e gerencia upload de fotos em disco. |
-| **`checklist`** | Concluído (V12) | Pendente | Modelagem pronta com prioridades e status. |
-| **`alerta`** | Concluído (V4, V20) | Esqueleto Service/Client | Modelagem de alertas e tabela de despacho de WhatsApp (V20) concluídas. Evolution API em execução no Docker. Telefonia mapeada a partir de `Estabelecimento.telefone`. |
-| **`risco` (ML)** | Concluído (V19, Entidade, Repo, DTOs) | Concluído | 100% funcional. Integrado ao microserviço FastAPI (`mare-alerta-ia`), com `feature_time` truncado em UTC, tratamento de `window_end`, e fallback gracioso (`DEGRADADO`) em caso de indisponibilidade da IA. |
+| **`checklist`** | Concluído (V12) | Concluído | 100% funcional. `ChecklistService` e `ChecklistController` com suporte a `/checklists`, `/checklists/registrar` e `/checklists/listar`, criação, atualização e listagem de itens preventivos por estabelecimento com prioridades (`ALTA`, `MEDIA`, `BAIXA`), e 11 testes automatizados. |
+| **`alerta`** | Concluído (V4, V20) | Concluído | 100% funcional. `AlertaService`, `AlertaController` e `EvolutionApiClient` conectados à Evolution API v2 para emissão individual e broadcast por bairro. Sanitização e formatação E.164 (`55919XXXXXXXX`), registro e rastreio de auditoria em `envios_alerta_whatsapp` com enums de status e controle de tentativas. |
+| **`risco` (ML)** | Concluído (V19, Entidade, Repo, DTOs) | Concluído | 100% funcional. Integrado ao microserviço FastAPI (`mare-alerta-ia`), com `feature_time` truncado em UTC, consumo de parâmetros atmosféricos reais da telemetria, tratamento de `window_end`, e fallback gracioso (`DEGRADADO`) em caso de indisponibilidade da IA. |
 
 ---
 
@@ -213,21 +215,75 @@ Para garantir **idempotência** (se o servidor cair durante o envio para 50 loja
 
 ---
 
-## 7. Convenções de Código e Boas Práticas
+## 7. Arquitetura de Segurança, JWT, Refresh Token e Rate Limiting
 
-1. **Camada de Dados Estrita:** Nenhuma constraint ou regra de negócio crítica deve existir apenas no Java; use `CHECK`, índices parciais e chaves compostas no banco para garantir consistência quando scripts ou serviços externos (como ML em Python ou Webhooks da Evolution API) acessarem a base.
-2. **Sem Comentários no Código:** O projeto segue a diretriz estrita de código limpo e autoexplicativo, sem comentários inline em arquivos Java ou SQL.
-3. **Imutabilidade de Migrações:** Nunca edite um script Flyway que já foi executado em qualquer ambiente. Crie sempre uma nova migração sequencial para aplicar correções (regra Expand/Contract).
-4. **Validação:** DTOs de entrada usam Jakarta Validation (`@NotNull`, `@NotBlank`, `@Size`, `@Email`). Respostas de erro são padronizadas via `ApiExceptionHandler` retornando o record `ApiError`.
-5. **Proibição de DEFAULTs Artificiais:** Não utilizar valores padrão sentinela em migrations SQL (`DEFAULT 'Não informado'`, `'S/N'`, etc.) nem duplicar defaults entre código Java (`@Builder.Default`, `@PrePersist`) e banco. Dados ausentes devem ser tratados como `NULL` ou obrigatoriamente exigidos pelo contrato da API.
-6. **Padronização de TIMESTAMPTZ:** Todas as novas tabelas, evoluções de timestamps e contratos DTOs devem utilizar `TIMESTAMPTZ` no PostgreSQL e `java.time.Instant` no Java (ISO-8601 UTC). Isso elimina bugs de fuso horário decorrentes de divergências entre máquinas de desenvolvimento locais (Belém GMT-3), contêineres Docker (UTC) e servidores de produção.
-7. **Uso de BIGINT para Séries Temporais:** Identificadores de tabelas de telemetria, previsões e despachos de mensagens utilizam `BIGINT` (`Long` no Java) para evitar risco de exaustão de sequence.
-8. **Uso de Enum para Estados Finitos:** Status de qualidade, status de envio de WhatsApp e classificações de risco utilizam tipos enumerados para garantir segurança de tipos e contratos explícitos.
-9. **Gestão de Segredos e `.env`:** Arquivos `.env` e variações locais são estritamente ignorados no `.gitignore`. O repositório mantém apenas o `.env.example` como gabarito público de configuração. Em ambiente de produção, segredos como `EVOLUTION_API_KEY` e `JWT_KEY` devem ser injetados via variáveis de ambiente da infraestrutura, sobrepondo os valores de fallback de desenvolvimento.
+### A. Fluxo de Autenticação e Renovação de Sessão (JWT & Refresh Token)
+O backend adota arquitetura de segurança stateless com dois níveis de token:
+1. **Access Token:**
+   - Emitido no login e registro (`POST /auth/login` e `POST /auth/registro`).
+   - Contém o claim `type: "ACCESS"`, sujeito do usuário e tempo de vida curto/médio (`jwt.expiration`, padrão 2h30 ou 15m configurável).
+   - Enviado no cabeçalho `Authorization: Bearer <token>` para acesso a rotas privadas.
+2. **Refresh Token:**
+   - Emitido juntamente com o access token, contendo o claim estrito `type: "REFRESH"` e expiração de longa duração (`jwt.refresh-expiration`, padrão 7 dias).
+   - Utilizado exclusivamente no endpoint `POST /auth/refresh` com payload `{"refreshToken": "..."}`.
+   - O `JwtAuthFilter` rejeita sumariamente refresh tokens enviados diretamente em rotas protegidas normais, impedindo uso indevido.
+   - Retorna novo par de tokens (`token` e `refreshToken`).
+
+### B. Verificação Estrita de Usuário e Estabelecimento no Login
+Para impedir acesso de contas suspensas ou comércios desativados:
+- O `AuthService` valida se `user.getDeletedAt() == null`.
+- Valida se o estabelecimento vinculado está ativo (`estabelecimento.getAtivo() == true`).
+- Tentativas de login ou renovação de refresh token para usuários excluídos ou comércios inativos são barradas com `HTTP 401 Unauthorized` (`InvalidCredentialsException`).
+
+### C. Rate Limiting com Bucket4j e Cache Caffeine
+Para proteção contra força bruta em credenciais, scraping e sobrecarga da infraestrutura:
+- Implementado em `RateLimitFilter` utilizando algoritmo Token Bucket (`com.bucket4j:bucket4j-core`) armazenado em memória com expiração LRU via `com.github.benmanes.caffeine:caffeine`.
+- Limitação calculada por IP de origem do cliente (com suporte a proxies reversos via header `X-Forwarded-For`).
+- Parâmetros configuráveis via `application.yaml` e `.env`:
+  - `security.rate-limit.capacity`: 60 requisições
+  - `security.rate-limit.refill-tokens`: 60 tokens
+  - `security.rate-limit.refill-duration-seconds`: 60 segundos
+- Ao exceder o balde, responde imediatamente com `HTTP 429 Too Many Requests`, cabeçalho `Retry-After: {segundos}` e payload JSON padronizado.
+- Rotas do Swagger UI e OpenAPI são isentas do filtro para permitir documentação fluida.
+
+### D. Hardening de CORS
+- Configurado via `CorsConfig` consumindo `app.cors.allowed-origins` (`CORS_ALLOWED_ORIGINS`).
+- Origens padrão autorizadas: `http://localhost:3000`, `http://localhost:5173`, `http://127.0.0.1:5173`.
+- Suporte a credenciais (`allowCredentials: true`), métodos `GET, POST, PUT, DELETE, OPTIONS, PATCH` e tempo de cache preflight de 3600 segundos.
+
+### E. Matriz de Autorização de Rotas (SecurityConfig)
+| Rota / Prefixo | Método | Acesso | Descrição |
+| :--- | :---: | :---: | :--- |
+| `/`, `/swagger-ui/**`, `/v3/api-docs/**` | GET | Público | Documentação interativa OpenAPI/Swagger |
+| `/auth/registro`, `/auth/login`, `/auth/refresh` | POST | Público | Registro, login e renovação de token |
+| `/telemetria/**` | GET | Público | Dados em tempo real das marés e sensores |
+| `/risco/**` | GET | Público | Consulta de previsão de alagamento e IA |
+| `/alertas` e `/alertas/**` | GET | Público | Consulta e histórico público de alertas |
+| `OPTIONS /**` | OPTIONS | Público | Requisições de preflight do CORS |
+| `/alertas` e `/alertas/bairro` | POST | Autenticado | Emissão e broadcast de novos alertas |
+| `/checklists/**` | Qualquer | Autenticado | Planejamento preventivo do estabelecimento |
+| `/ocorrencias/**` | Qualquer | Autenticado | Registro de sinistros e anexo de fotos |
+| `/estabelecimento/**` | Qualquer | Autenticado | Perfil comercial, horários e itens críticos |
 
 ---
 
-## 8. Como Executar e Testar
+## 8. Convenções de Código e Boas Práticas
+
+1. **Camada de Dados Estrita:** Nenhuma constraint ou regra de negócio crítica deve existir apenas no Java; use `CHECK`, índices parciais e chaves compostas no banco para garantir consistência quando scripts ou serviços externos (como ML em Python ou Webhooks da Evolution API) acessarem a base.
+2. **Sem Comentários no Código:** O projeto segue a diretriz estrita de código limpo e autoexplicativo, sem comentários inline em arquivos Java ou SQL.
+3. **Injeção de Dependências via Lombok:** Todos os Services e Controllers utilizam `@RequiredArgsConstructor` sobre atributos `private final`, eliminando construtores manuais repetitivos e anotações `@Autowired` desnecessárias. Classes com `@Value` em parâmetros mantêm construtores explícitos.
+4. **Imports Limpos e Sem Wildcards:** Proibido o uso de `import .*`. Todos os imports devem ser explícitos e qualquer import não utilizado deve ser removido.
+5. **Imutabilidade de Migrações:** Nunca edite um script Flyway que já foi executado em qualquer ambiente. Crie sempre uma nova migração sequencial para aplicar correções (regra Expand/Contract).
+6. **Validação:** DTOs de entrada usam Jakarta Validation (`@NotNull`, `@NotBlank`, `@Size`, `@Email`). Respostas de erro são padronizadas via `ApiExceptionHandler` retornando o record `ApiError`.
+7. **Proibição de DEFAULTs Artificiais:** Não utilizar valores padrão sentinela em migrations SQL (`DEFAULT 'Não informado'`, `'S/N'`, etc.) nem duplicar defaults entre código Java (`@Builder.Default`, `@PrePersist`) e banco. Dados ausentes devem ser tratados como `NULL` ou obrigatoriamente exigidos pelo contrato da API.
+8. **Padronização de TIMESTAMPTZ:** Todas as novas tabelas, evoluções de timestamps e contratos DTOs devem utilizar `TIMESTAMPTZ` no PostgreSQL e `java.time.Instant` no Java (ISO-8601 UTC). Isso elimina bugs de fuso horário decorrentes de divergências entre máquinas de desenvolvimento locais (Belém GMT-3), contêineres Docker (UTC) e servidores de produção.
+9. **Uso de BIGINT para Séries Temporais:** Identificadores de tabelas de telemetria, previsões e despachos de mensagens utilizam `BIGINT` (`Long` no Java) para evitar risco de exaustão de sequence.
+10. **Uso de Enum para Estados Finitos:** Status de qualidade, status de envio de WhatsApp e classificações de risco utilizam tipos enumerados para garantir segurança de tipos e contratos explícitos.
+11. **Gestão de Segredos e `.env`:** Arquivos `.env` e variações locais são estritamente ignorados no `.gitignore`. O repositório mantém apenas o `.env.example` como gabarito público de configuração. Em ambiente de produção, segredos como `EVOLUTION_API_KEY` e `JWT_KEY` devem ser injetados via variáveis de ambiente da infraestrutura, sobrepondo os valores de fallback de desenvolvimento.
+
+---
+
+## 9. Como Executar e Testar
 
 ### Pré-requisitos
 - Java 21 LTS
@@ -254,7 +310,9 @@ docker compose up -d postgres evolution_api
 ## 📜 Histórico Contínuo de Atualizações
 
 | Data | Autor | Resumo das Mudanças | Impacto |
-| :--- | :--- | :--- | :--- |
+| :--- | :---: | :--- | :--- |
+| **10/10/2026** | AKIRA-NZR | Sincronização e integração do módulo `checklist` (`ChecklistService`, `ChecklistController`, 11 testes automatizados). Implementação de segurança avançada com JWT Refresh Token (`POST /auth/refresh`), separação estrita de claims `ACCESS` vs `REFRESH`, verificação de usuários ativos e estabelecimentos não-deletados no login. Implementação de Rate Limiting por IP via Bucket4j 8 e Caffeine (`RateLimitFilter` retornando HTTP 429 e `Retry-After`). Hardening de CORS configurável via `CORS_ALLOWED_ORIGINS`. Correção de syntax de `@Value` e rotas na Evolution API e RestClient. Padronização de injeção `@RequiredArgsConstructor`, remoção de wildcard imports e limpeza de comentários em código. Atualização do `.env.example` e documentação viva. | Camada de segurança e autenticação robusta, proteção contra ataques de força bruta, prevenção de vazamento de tokens e alinhamento completo com o módulo preventivo de checklist. |
+| **08/10/2026** | AKIRA-NZR | Implementação completa da integração com WhatsApp via Evolution API v2 (`EvolutionApiClient`, `AlertaService`, `AlertaController`) com formatação E.164 (`5591...`), rastreio e auditoria em `envios_alerta_whatsapp` (status `PENDENTE`, `ENVIADO`, `FALHA` e tentativas) e suporte a broadcast por bairro. Aprimoramento da conexão Open-Meteo com requisição e mapeamento de 13 parâmetros atmosféricos superficiais em tempo real para alimentação direta do modelo de Machine Learning (`rain-hourly-v1`). Adição de 18 novos testes automatizados (totalizando 40 testes de unidade e controller com 100% de sucesso). | Sistema de alerta operacional em tempo real integrado ao WhatsApp e IA, eliminando dados climáticos simulados e garantindo auditabilidade da Defesa Civil. |
 | **08/10/2026** | AKIRA-NZR | Alinhamento do contrato do microserviço de ML (`mare-alerta-ia`), com truncamento estrito de `feature_time` para hora cheia UTC, anotação `@JsonIgnoreProperties` e mapeamento de `window_end` em `PrevisaoMlResponse`. Implementação de fallback gracioso no `RiscoService` com status `DEGRADADO` para tolerância a falhas na IA. Definição do envio de alertas WhatsApp associado aos telefones de `Estabelecimento.telefone` por bairro. Criação de 22 testes unitários automatizados para `ocorrencias`, `risco` e `telemetria`. | Robustez operacional de ponta a ponta: tolerância a falhas na IA, conformidade de contratos e cobertura de testes automatizados com 100% de sucesso. |
 | **06/10/2026** | AKIRA-NZR | Proteção estrita de segredos locais: adição de `.env` ao `.gitignore`, criação do modelo `.env.example` e documentação de boas práticas de variáveis de ambiente. | Blindagem contra vazamento de credenciais e segurança de segredos em produção. |
 | **06/10/2026** | AKIRA-NZR | Integração da Evolution API v2 (`evoapicloud/evolution-api:latest`) no `docker-compose.yml` e `application.yaml`, isolada no schema `evolution`. Criação da migração `V20__create_envios_alerta_whatsapp.sql`, entidade `EnvioAlertaWhatsapp`, enum `StatusEnvioWhatsapp` e repositório `EnvioAlertaWhatsappRepository`. Documentação completa de procedimentos de QR Code, testes e anti-ban. | Capacidade de despacho de mensagens no WhatsApp com auditoria, controle de fila e tolerância a falhas. |
@@ -262,4 +320,5 @@ docker compose up -d postgres evolution_api
 | **05/10/2026** | AKIRA-NZR | Criação do `docs/GUIA_BACKEND.md`. Implementação inicial dos DTOs de ML padronizados com `Instant`/`TIMESTAMPTZ`. Sincronização com `origin/main` (CI/GHCR). | Documentação viva centralizada e alinhamento de timezone do backend. |
 | **02/10/2026** | Andr3Dav1d | Workflow CI para publicação de imagens multi-arquitetura no GHCR (`.github/workflows/ci.yml`). | Pipeline de entrega contínua automatizada. |
 | **01/10/2026** | AKIRA-NZR | Migrações V17 e V18: adição das colunas climáticas Open-Meteo na telemetria e índice único parcial para soft delete de e-mail. DTOs de telemetria e gráficos. | Suporte a dados meteorológicos e correção do histórico V10. |
+
 
