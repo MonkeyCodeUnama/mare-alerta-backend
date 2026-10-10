@@ -1,6 +1,7 @@
 package com.marealerta.backend.telemetria.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -9,6 +10,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @Component
+@RequiredArgsConstructor
 public class OpenMeteoClient {
 
     private static final String OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
@@ -16,10 +18,6 @@ public class OpenMeteoClient {
     private static final double LONGITUDE_BELEM = -48.5044;
 
     private final RestTemplate restTemplate;
-
-    public OpenMeteoClient(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
-    }
 
     public OpenMeteoResponse buscarDadosAtuaisEPrevisao() {
         String url = UriComponentsBuilder.fromUriString(OPEN_METEO_URL)
