@@ -1,13 +1,16 @@
 package com.marealerta.backend.telemetria.service;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.RequiredArgsConstructor;
+import java.math.BigDecimal;
+import java.util.List;
+
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.math.BigDecimal;
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
@@ -23,7 +26,7 @@ public class OpenMeteoClient {
         String url = UriComponentsBuilder.fromUriString(OPEN_METEO_URL)
                 .queryParam("latitude", LATITUDE_BELEM)
                 .queryParam("longitude", LONGITUDE_BELEM)
-                .queryParam("current", "precipitation,temperature_2m,wind_speed_10m,wind_direction_10m")
+                .queryParam("current", "precipitation,temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,pressure_msl,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m")
                 .queryParam("hourly", "precipitation,temperature_2m,wind_speed_10m,wind_direction_10m")
                 .queryParam("timezone", "America/Belem")
                 .toUriString();
@@ -31,19 +34,28 @@ public class OpenMeteoClient {
         return restTemplate.getForObject(url, OpenMeteoResponse.class);
     }
 
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public record OpenMeteoResponse(
             @JsonProperty("current") CurrentUnits current,
             @JsonProperty("hourly") HourlyData hourly
     ) {}
 
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public record CurrentUnits(
             String time,
             @JsonProperty("precipitation") BigDecimal precipitacao,
             @JsonProperty("temperature_2m") BigDecimal temperatura,
+            @JsonProperty("relative_humidity_2m") BigDecimal umidadeRelativa,
+            @JsonProperty("dew_point_2m") BigDecimal pontoOrvalho,
+            @JsonProperty("surface_pressure") BigDecimal pressaoSuperficie,
+            @JsonProperty("pressure_msl") BigDecimal pressaoMsl,
+            @JsonProperty("cloud_cover") BigDecimal coberturaNuvens,
             @JsonProperty("wind_speed_10m") BigDecimal ventoVelocidade,
-            @JsonProperty("wind_direction_10m") BigDecimal ventoDirecao
+            @JsonProperty("wind_direction_10m") BigDecimal ventoDirecao,
+            @JsonProperty("wind_gusts_10m") BigDecimal rajadasVento
     ) {}
 
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public record HourlyData(
             List<String> time,
             @JsonProperty("precipitation") List<BigDecimal> precipitacao,

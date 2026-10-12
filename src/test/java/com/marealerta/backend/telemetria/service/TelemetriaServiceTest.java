@@ -100,8 +100,14 @@ class TelemetriaServiceTest {
                 LocalDateTime.now().toString(),
                 BigDecimal.valueOf(12.0),
                 BigDecimal.valueOf(30.0),
+                BigDecimal.valueOf(80.0),
+                BigDecimal.valueOf(25.0),
+                BigDecimal.valueOf(1012.0),
+                BigDecimal.valueOf(1013.0),
+                BigDecimal.valueOf(70.0),
                 BigDecimal.valueOf(18.0),
-                BigDecimal.valueOf(80.0)
+                BigDecimal.valueOf(80.0),
+                BigDecimal.valueOf(25.0)
         );
 
         OpenMeteoClient.HourlyData hourly = new OpenMeteoClient.HourlyData(
@@ -167,6 +173,19 @@ class TelemetriaServiceTest {
         assertThat(pontos).hasSize(1);
         assertThat(pontos.get(0).getLevel()).isEqualByComparingTo(BigDecimal.valueOf(2.40));
         assertThat(pontos.get(0).getTime()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Deve obter histórico recente de leituras")
+    void deveObterHistoricoRecenteComSucesso() {
+        when(repository.findTop10ByEstacaoCodigoOrderByDataHoraDesc("BELEM-CENTRO"))
+                .thenReturn(List.of(leituraBase));
+
+        List<LeituraTelemetriaResponse> historico = telemetriaService.obterHistoricoRecente("BELEM-CENTRO");
+
+        assertThat(historico).hasSize(1);
+        assertThat(historico.get(0).getEstacaoCodigo()).isEqualTo("BELEM-CENTRO");
+        verify(repository).findTop10ByEstacaoCodigoOrderByDataHoraDesc("BELEM-CENTRO");
     }
 }
 

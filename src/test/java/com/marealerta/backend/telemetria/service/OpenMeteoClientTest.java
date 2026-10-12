@@ -35,8 +35,14 @@ class OpenMeteoClientTest {
                 "2026-10-12T12:00",
                 BigDecimal.valueOf(1.5),
                 BigDecimal.valueOf(28.4),
+                BigDecimal.valueOf(82.0),
+                BigDecimal.valueOf(24.5),
+                BigDecimal.valueOf(1012.3),
+                BigDecimal.valueOf(1013.1),
+                BigDecimal.valueOf(75.0),
                 BigDecimal.valueOf(14.2),
-                BigDecimal.valueOf(80.0)
+                BigDecimal.valueOf(80.0),
+                BigDecimal.valueOf(22.5)
         );
 
         OpenMeteoClient.HourlyData hourly = new OpenMeteoClient.HourlyData(
@@ -56,11 +62,29 @@ class OpenMeteoClientTest {
 
         assertThat(response).isNotNull();
         assertThat(response.current()).isNotNull();
-        assertThat(response.current().temperatura()).isEqualByComparingTo(BigDecimal.valueOf(28.4));
         assertThat(response.current().precipitacao()).isEqualByComparingTo(BigDecimal.valueOf(1.5));
+        assertThat(response.current().temperatura()).isEqualByComparingTo(BigDecimal.valueOf(28.4));
+        assertThat(response.current().umidadeRelativa()).isEqualByComparingTo(BigDecimal.valueOf(82.0));
+        assertThat(response.current().pontoOrvalho()).isEqualByComparingTo(BigDecimal.valueOf(24.5));
+        assertThat(response.current().pressaoSuperficie()).isEqualByComparingTo(BigDecimal.valueOf(1012.3));
+        assertThat(response.current().pressaoMsl()).isEqualByComparingTo(BigDecimal.valueOf(1013.1));
+        assertThat(response.current().coberturaNuvens()).isEqualByComparingTo(BigDecimal.valueOf(75.0));
+        assertThat(response.current().ventoVelocidade()).isEqualByComparingTo(BigDecimal.valueOf(14.2));
+        assertThat(response.current().ventoDirecao()).isEqualByComparingTo(BigDecimal.valueOf(80.0));
+        assertThat(response.current().rajadasVento()).isEqualByComparingTo(BigDecimal.valueOf(22.5));
         assertThat(response.hourly().time()).hasSize(2);
 
         verify(restTemplate).getForObject(contains("timezone=America/Belem"), eq(OpenMeteoClient.OpenMeteoResponse.class));
+    }
+
+    @Test
+    void deveRetornarNuloQuandoRestTemplateRetornarNulo() {
+        when(restTemplate.getForObject(contains("latitude=-1.4558"), eq(OpenMeteoClient.OpenMeteoResponse.class)))
+                .thenReturn(null);
+
+        OpenMeteoClient.OpenMeteoResponse response = client.buscarDadosAtuaisEPrevisao();
+
+        assertThat(response).isNull();
     }
 }
 
