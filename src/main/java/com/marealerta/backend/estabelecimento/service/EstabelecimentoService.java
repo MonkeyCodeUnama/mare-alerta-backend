@@ -62,7 +62,8 @@ public class EstabelecimentoService {
 
     @Transactional(readOnly = true)
     public EstabelecimentoResponse buscarPorEmailUsuario(String email) {
-        Usuario usuario = usuarioRepository.findByEmail(email)
+        String emailNormalizado = email != null ? email.trim().toLowerCase() : "";
+        Usuario usuario = usuarioRepository.findByEmail(emailNormalizado)
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado com e-mail: " + email));
 
         if (usuario.getEstabelecimento() == null) {
