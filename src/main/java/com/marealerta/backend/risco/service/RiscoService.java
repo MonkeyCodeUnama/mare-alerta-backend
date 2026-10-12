@@ -39,13 +39,11 @@ public class RiscoService {
         double lat = -1.4558;
         double lon = -48.5044;
 
-        // 1. Obtém os dados da Telemetria
         TelemetriaDashboardResponse telemetria = telemetriaService.obterDashboard();
 
-        // 2. Mapeamento com os getters exatos da classe TelemetriaDashboardResponse
         Map<String, BigDecimal> features = new HashMap<>();
         features.put("temperature_2m", telemetria.getTemperatura() != null ? telemetria.getTemperatura() : BigDecimal.valueOf(28.0));
-        features.put("relative_humidity_2m", BigDecimal.valueOf(85.0)); // Valor default caso não haja sensor de humidade
+        features.put("relative_humidity_2m", BigDecimal.valueOf(85.0));
         features.put("dew_point_2m", BigDecimal.valueOf(24.0));
         features.put("pressure_msl", BigDecimal.valueOf(1010.0));
         features.put("surface_pressure", BigDecimal.valueOf(1008.0));
