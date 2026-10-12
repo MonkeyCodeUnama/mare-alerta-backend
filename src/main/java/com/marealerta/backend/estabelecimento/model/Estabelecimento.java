@@ -39,7 +39,7 @@ public class Estabelecimento {
     @Column(nullable = false, length = 100)
     private String nome;
 
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private String documento;
 
     @Enumerated(EnumType.STRING)
