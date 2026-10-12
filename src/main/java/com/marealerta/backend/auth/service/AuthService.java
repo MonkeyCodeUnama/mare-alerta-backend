@@ -31,7 +31,8 @@ public class AuthService {
 
     @Transactional
     public TokenResponse register(RegisterRequest register) {
-        if (usuarioRepository.existsByEmail(register.getEmail())) {
+        String emailNormalizado = register.getEmail() != null ? register.getEmail().trim().toLowerCase() : "";
+        if (usuarioRepository.existsByEmail(emailNormalizado)) {
             throw new EmailAlreadyRegisteredException();
         }
 
@@ -55,7 +56,7 @@ public class AuthService {
         estabelecimentoRepository.save(estab);
 
         Usuario user = new Usuario();
-        user.setEmail(register.getEmail());
+        user.setEmail(emailNormalizado);
         user.setSenha(passwordEncoder.encode(register.getSenha()));
         user.setEstabelecimento(estab);
 
@@ -76,9 +77,10 @@ public class AuthService {
 
     public TokenResponse login(LoginRequest request) {
         try {
+            String emailNormalizado = request.getEmail() != null ? request.getEmail().trim().toLowerCase() : "";
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            request.getEmail(),
+                            emailNormalizado,
                             request.getSenha()
                     )
             );
