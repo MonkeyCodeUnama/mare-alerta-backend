@@ -288,8 +288,8 @@ Para proteção contra força bruta em credenciais, scraping e sobrecarga da inf
 
 ### Inicialização Rápida:
 ```bash
-# 1. Iniciar PostgreSQL e Evolution API
-docker compose up -d postgres evolution_api
+# 1. Iniciar PostgreSQL, Evolution API e Microserviço de IA (weather-model)
+docker compose up -d postgres evolution_api weather-model
 
 # 2. Compilar e Rodar Testes
 ./gradlew test
@@ -298,9 +298,11 @@ docker compose up -d postgres evolution_api
 ./gradlew bootRun
 ```
 
-- **Swagger UI:** `http://localhost:8080/swagger-ui/index.html`
-- **OpenAPI JSON:** `http://localhost:8080/v3/api-docs`
+- **Swagger UI (Backend):** `http://localhost:8080/swagger-ui/index.html`
+- **OpenAPI JSON (Backend):** `http://localhost:8080/v3/api-docs`
 - **Painel Evolution API (WhatsApp):** `http://localhost:8081/manager`
+- **Documentação FastAPI (IA - weather-model):** `http://localhost:8000/docs`
+- **Healthcheck da IA:** `http://localhost:8000/health`
 
 ---
 
@@ -308,6 +310,7 @@ docker compose up -d postgres evolution_api
 
 | Data | Autor | Resumo das Mudanças | Impacto |
 | :--- | :--- | :--- | :--- |
+| **12/10/2026** | AKIRA-NZR | Conclusão da Etapa 3: integração do microserviço `mare-alerta-ia` (`weather-model`) via Docker Compose com `python:3.13-slim`, mapeamento seguro de porta `127.0.0.1:8000:8000`, montagem somente leitura de artefatos (`model_bundle.joblib`), healthcheck HTTP nativo em `/health` e comunicação direta entre contêineres (`http://weather-model:8000/v1/predict`). | Inferência de Machine Learning operando em contêiner dedicado e desacoplado, com observabilidade de integridade e tolerância a falhas. |
 | **12/10/2026** | AKIRA-NZR | Conclusão da Etapa 2 da telemetria: expansão do `OpenMeteoClient` para 10 variáveis atmosféricas superficiais em tempo real com anotação `@JsonIgnoreProperties(ignoreUnknown = true)`, exposição de endpoints `/telemetria/grafico`, `/telemetria/sincronizar` e `/telemetria/historico`, testes unitários atualizados em `OpenMeteoClientTest`, `TelemetriaControllerTest` e `TelemetriaServiceTest`, e smoke test real validado contra a API Open-Meteo para Belém (-1.4558, -48.5044). | Alimentação fidedigna em tempo real do dashboard e do modelo de IA de chuva, cobertura total de endpoints e tolerância a novos atributos da API meteorológica. |
 | **12/10/2026** | AKIRA-NZR | Execução das migrações Flyway `V21` a `V24`: limpeza de colunas legadas em `ocorrencias` (`data_inicio`, `data_fim`), expurgo de índices redundantes e adição de índices compostos (`idx_ocorrencias_status_data`, `idx_checklist_estab_ordem`). Endurecimento do PostgreSQL com constraints `CHECK` para todos os enums do sistema e valores numéricos não negativos (`V22`). Suporte a comércios informais sem CNPJ (`documento` opcional). Adição de multi-fonte na telemetria com coluna `fonte` (`OPEN_METEO`, `TABUA_MARE`) e chave única idempotente (`V23`). Normalização e índice funcional case-insensitive `LOWER(email)` (`V24`). Expansão da suíte de testes unitários com criação de `EstabelecimentoServiceTest`, `EstabelecimentoControllerTest`, `UserDetailsServiceImplTest`, `OpenMeteoClientTest` e `MlApiClienteTest`. | Consistência relacional estrita, prevenção contra dados órfãos ou inconsistentes, suporte a trabalhadores informais e 100% de cobertura de testes unitários em todos os módulos. |
 | **10/10/2026** | AKIRA-NZR | Sincronização e integração do módulo `checklist` (`ChecklistService`, `ChecklistController`, 11 testes automatizados). Implementação de segurança avançada com JWT Refresh Token (`POST /auth/refresh`), separação estrita de claims `ACCESS` vs `REFRESH`, verificação de usuários ativos e estabelecimentos não-deletados no login. Implementação de Rate Limiting por IP via Bucket4j 8 e Caffeine (`RateLimitFilter` retornando HTTP 429 e `Retry-After`). Hardening de CORS configurável via `CORS_ALLOWED_ORIGINS`. Correção de syntax de `@Value` e rotas na Evolution API e RestClient. Padronização de injeção `@RequiredArgsConstructor`, remoção de wildcard imports e limpeza de comentários em código. Atualização do `.env.example` e documentação viva. | Camada de segurança e autenticação robusta, proteção contra ataques de força bruta, prevenção de vazamento de tokens e alinhamento completo com o módulo preventivo de checklist. |
