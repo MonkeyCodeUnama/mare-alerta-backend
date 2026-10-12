@@ -1,8 +1,14 @@
 package com.marealerta.backend.auth.controller;
 
 import com.marealerta.backend.auth.dto.LoginRequest;
+import com.marealerta.backend.auth.dto.RefreshTokenRequest;
 import com.marealerta.backend.auth.dto.RegisterRequest;
 import com.marealerta.backend.auth.dto.TokenResponse;
+import com.marealerta.backend.auth.service.AuthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -11,14 +17,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import com.marealerta.backend.auth.service.AuthService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/auth")
+@Tag(name = "Autenticação", description = "Endpoints de autenticação, registro e renovação de token JWT")
 public class AuthController {
 
     private final AuthService authService;
@@ -34,7 +37,7 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(registerRequest));
     }
 
-    @Operation(summary = "login")
+    @Operation(summary = "Login do usuário")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "autenticação realizada"),
             @ApiResponse(responseCode = "400", description = "dados inválidos"),
@@ -45,4 +48,14 @@ public class AuthController {
         return ResponseEntity.ok(authService.login(loginRequest));
     }
 
+    @Operation(summary = "Renovar token de acesso (Refresh Token)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "token atualizado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "dados inválidos"),
+            @ApiResponse(responseCode = "401", description = "refresh token inválido ou expirado")
+    })
+    @PostMapping("/refresh")
+    public ResponseEntity<TokenResponse> refresh(@RequestBody @Valid RefreshTokenRequest refreshTokenRequest) {
+        return ResponseEntity.ok(authService.refreshToken(refreshTokenRequest));
+    }
 }

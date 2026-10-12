@@ -39,9 +39,8 @@ public class EstabelecimentoService {
 
     @Transactional(readOnly = true)
     public EstabelecimentoResponse buscarPorEmailUsuario(String email) {
-        Usuario usuario = usuarioRepository.findAll().stream()
-                .filter(u -> u.getEmail().equalsIgnoreCase(email))
-                .findFirst()
+        String emailNormalizado = email != null ? email.trim().toLowerCase() : "";
+        Usuario usuario = usuarioRepository.findByEmail(emailNormalizado)
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado com e-mail: " + email));
 
         if (usuario.getEstabelecimento() == null) {

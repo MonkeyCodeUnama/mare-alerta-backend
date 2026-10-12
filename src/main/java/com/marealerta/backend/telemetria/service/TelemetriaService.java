@@ -16,7 +16,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class TelemetriaService {
 
     public static final String ESTACAO_BELEM_CODIGO = "BELEM-CENTRO";
@@ -24,11 +27,6 @@ public class TelemetriaService {
 
     private final LeituraTelemetriaRepository repository;
     private final OpenMeteoClient openMeteoClient;
-
-    public TelemetriaService(LeituraTelemetriaRepository repository, OpenMeteoClient openMeteoClient) {
-        this.repository = repository;
-        this.openMeteoClient = openMeteoClient;
-    }
 
     @Transactional
     public LeituraTelemetriaResponse salvarManual(LeituraTelemetriaRequest request) {
