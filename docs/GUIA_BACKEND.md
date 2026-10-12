@@ -12,7 +12,7 @@ Este documento é o guia vivo de referência para qualquer desenvolvedor trabalh
 - **Framework Principal:** Spring Boot 4.1.1
 - **Gerenciador de Dependências & Build:** Gradle 9.7.1 (Kotlin DSL — `build.gradle.kts`)
 - **Persistência & ORM:** Spring Data JPA / Hibernate com PostgreSQL 16
-- **Controle de Versão de Banco:** Flyway Migrations ativas: **V1 a V20** (`classpath:db/migration`)
+- **Controle de Versão de Banco:** Flyway Migrations ativas: **V1 a V24** (`classpath:db/migration`)
 - **Segurança & Autenticação:** Spring Security, JWT stateless (`io.jsonwebtoken:jjwt 0.12.6`), senhas criptografadas com BCrypt
 - **Documentação de API:** OpenAPI 3 / Swagger UI (`springdoc-openapi 3.1.1`)
 - **Gateway de WhatsApp:** Evolution API v2 (`evoapicloud/evolution-api:latest`, Baileys/WebSocket, REST API com Manager UI e Webhooks)
@@ -95,7 +95,7 @@ src/main/java/com/marealerta/backend/
 
 O banco PostgreSQL é gerido estritamente pelo Flyway (`ddl-auto: validate`). Nenhuma alteração manual deve ser feita em banco; toda evolução passa por scripts versionados em `src/main/resources/db/migration/`.
 
-### Migrações Ativas no Projeto (V1 a V20):
+### Migrações Ativas no Projeto (V1 a V24):
 - **`V1__create_estabelecimento.sql`**: Tabela base de comércios.
 - **`V2__create_usuario.sql`**: Tabela de usuários e credenciais vinculadas a estabelecimentos.
 - **`V3__create_estabelecimento_horarios.sql`**: Grade semanal de funcionamento (`dia_semana` 1..7).
@@ -116,13 +116,10 @@ O banco PostgreSQL é gerido estritamente pelo Flyway (`ddl-auto: validate`). Ne
 - **`V18__fix_usuario_email_soft_delete.sql`**: Índice único parcial ativo para e-mail (`WHERE deleted_at IS NULL`).
 - **`V19__create_previsoes_chuva_ml.sql`**: Criação da tabela de previsões de machine learning (`previsoes_chuva_ml`) com chave primária `BIGINT`, tipos `TIMESTAMPTZ`, constraints estritas de probabilidade (0.0 a 1.0) e enum de qualidade, sem defaults artificiais.
 - **`V20__create_envios_alerta_whatsapp.sql`**: Tabela de despacho e rastreio de notificações de WhatsApp (`envios_alerta_whatsapp`) vinculada ao alerta e estabelecimento, com status em enum, controle de tentativas e `TIMESTAMPTZ`.
-
-### Planejamento de Migrações Futuras (V21 a V24 — Refatoração Adiada):
-As seguintes migrações foram desenhadas na análise de arquitetura e estão planejadas para execução em momento oportuno da sprint:
-- **`V21` (Limpeza de Colunas e Índices):** Remoção das colunas legadas `data_inicio` e `data_fim` de ocorrências; remoção de índices redundantes (`idx_estabelecimento_bairro`, `idx_ocorrencias_estabelecimento_id`, `idx_checklist_estabelecimento_id`) e criação dos índices compostos alinhados às consultas (`idx_ocorrencias_status_data`, `idx_checklist_estab_ordem`).
-- **`V22` (Integridade e Constraints sem DEFAULTs artificiais):** Constraints `CHECK` no PostgreSQL para enums (`tipo_negocio`, `status`, `nivel_alagamento`, `prioridade`, `nivel_risco`, `tipo_alerta`), valores não negativos em ocorrências, validação regex de UF e remoção definitiva de defaults de texto artificial (`'Não informado'`, `'S/N'`, `'00:00:00'`).
-- **`V23` (Telemetria Multi-Fonte):** Adição da coluna `fonte` (`OPEN_METEO`, `TABUA_MARE`, `MODELO_ML`) e chave única idempotente `(estacao_codigo, fonte, tipo_registro, data_hora)` para evitar colisão entre previsões da IA e dados observados da estação.
-- **`V24` (Concorrência e E-mail Case-Insensitive):** Sequence PostgreSQL `seq_protocolo_ocorrencia` para geração atômica de protocolos sem condição de corrida e índice funcional `LOWER(email)` onde `deleted_at IS NULL`.
+- **`V21__cleanup_colunas_e_indices.sql`**: Remoção de colunas legadas (`data_inicio`, `data_fim`) em `ocorrencias`, expurgo de índices redundantes e adição de índices compostos de alta performance (`idx_ocorrencias_status_data`, `idx_checklist_estab_ordem`).
+- **`V22__add_check_constraints_integridade.sql`**: Endurecimento do PostgreSQL com constraints `CHECK` para todos os enums do sistema, valores numéricos não-negativos, integridade de soft delete e preservação de documento opcional para comércios informais.
+- **`V23__add_fonte_telemetria.sql`**: Adição da coluna `fonte` (`OPEN_METEO`, `TABUA_MARE`) na tabela `leituras_telemetria` e chave única idempotente multi-fonte `(estacao_codigo, fonte, tipo_registro, data_hora)`.
+- **`V24__email_case_insensitive.sql`**: Índice único funcional `LOWER(email)` onde `deleted_at IS NULL` para garantir busca e unicidade insensível a maiúsculas/minúsculas.
 
 ---
 
@@ -310,7 +307,8 @@ docker compose up -d postgres evolution_api
 ## 📜 Histórico Contínuo de Atualizações
 
 | Data | Autor | Resumo das Mudanças | Impacto |
-| :--- | :---: | :--- | :--- |
+| :--- | :--- | :--- | :--- |
+| **12/10/2026** | AKIRA-NZR | Execução das migrações Flyway `V21` a `V24`: limpeza de colunas legadas em `ocorrencias` (`data_inicio`, `data_fim`), expurgo de índices redundantes e adição de índices compostos (`idx_ocorrencias_status_data`, `idx_checklist_estab_ordem`). Endurecimento do PostgreSQL com constraints `CHECK` para todos os enums do sistema e valores numéricos não negativos (`V22`). Suporte a comércios informais sem CNPJ (`documento` opcional). Adição de multi-fonte na telemetria com coluna `fonte` (`OPEN_METEO`, `TABUA_MARE`) e chave única idempotente (`V23`). Normalização e índice funcional case-insensitive `LOWER(email)` (`V24`). Expansão da suíte de testes unitários com criação de `EstabelecimentoServiceTest`, `EstabelecimentoControllerTest`, `UserDetailsServiceImplTest`, `OpenMeteoClientTest` e `MlApiClienteTest`. | Consistência relacional estrita, prevenção contra dados órfãos ou inconsistentes, suporte a trabalhadores informais e 100% de cobertura de testes unitários em todos os módulos. |
 | **10/10/2026** | AKIRA-NZR | Sincronização e integração do módulo `checklist` (`ChecklistService`, `ChecklistController`, 11 testes automatizados). Implementação de segurança avançada com JWT Refresh Token (`POST /auth/refresh`), separação estrita de claims `ACCESS` vs `REFRESH`, verificação de usuários ativos e estabelecimentos não-deletados no login. Implementação de Rate Limiting por IP via Bucket4j 8 e Caffeine (`RateLimitFilter` retornando HTTP 429 e `Retry-After`). Hardening de CORS configurável via `CORS_ALLOWED_ORIGINS`. Correção de syntax de `@Value` e rotas na Evolution API e RestClient. Padronização de injeção `@RequiredArgsConstructor`, remoção de wildcard imports e limpeza de comentários em código. Atualização do `.env.example` e documentação viva. | Camada de segurança e autenticação robusta, proteção contra ataques de força bruta, prevenção de vazamento de tokens e alinhamento completo com o módulo preventivo de checklist. |
 | **08/10/2026** | AKIRA-NZR | Implementação completa da integração com WhatsApp via Evolution API v2 (`EvolutionApiClient`, `AlertaService`, `AlertaController`) com formatação E.164 (`5591...`), rastreio e auditoria em `envios_alerta_whatsapp` (status `PENDENTE`, `ENVIADO`, `FALHA` e tentativas) e suporte a broadcast por bairro. Aprimoramento da conexão Open-Meteo com requisição e mapeamento de 13 parâmetros atmosféricos superficiais em tempo real para alimentação direta do modelo de Machine Learning (`rain-hourly-v1`). Adição de 18 novos testes automatizados (totalizando 40 testes de unidade e controller com 100% de sucesso). | Sistema de alerta operacional em tempo real integrado ao WhatsApp e IA, eliminando dados climáticos simulados e garantindo auditabilidade da Defesa Civil. |
 | **08/10/2026** | AKIRA-NZR | Alinhamento do contrato do microserviço de ML (`mare-alerta-ia`), com truncamento estrito de `feature_time` para hora cheia UTC, anotação `@JsonIgnoreProperties` e mapeamento de `window_end` em `PrevisaoMlResponse`. Implementação de fallback gracioso no `RiscoService` com status `DEGRADADO` para tolerância a falhas na IA. Definição do envio de alertas WhatsApp associado aos telefones de `Estabelecimento.telefone` por bairro. Criação de 22 testes unitários automatizados para `ocorrencias`, `risco` e `telemetria`. | Robustez operacional de ponta a ponta: tolerância a falhas na IA, conformidade de contratos e cobertura de testes automatizados com 100% de sucesso. |
