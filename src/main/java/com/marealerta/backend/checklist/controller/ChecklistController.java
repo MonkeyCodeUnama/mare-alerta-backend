@@ -31,8 +31,8 @@ public class ChecklistController {
 
     @Operation(summary = "listar itens checklists do estabelcimento")
     @GetMapping("/listar")
-    public ResponseEntity<List<ItemChecklistResponse>> listar(@RequestParam Long estabelcimentoId, @RequestParam(required = false)StatusChecklist statusChecklist){
-        List<ItemChecklistResponse> itens = checklistService.listar(estabelcimentoId, statusChecklist);
+    public ResponseEntity<List<ItemChecklistResponse>> listar(@RequestParam("estabelecimentoId") Long estabelecimentoId, @RequestParam(required = false)StatusChecklist statusChecklist){
+        List<ItemChecklistResponse> itens = checklistService.listar(estabelecimentoId, statusChecklist);
         return ResponseEntity.ok(itens);
     }
 

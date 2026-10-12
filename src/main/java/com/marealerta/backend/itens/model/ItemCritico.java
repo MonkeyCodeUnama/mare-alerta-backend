@@ -1,5 +1,6 @@
 package com.marealerta.backend.itens.model;
 
+import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -14,15 +15,14 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Entity 
 @Table(name = "itens_criticos")
 @Getter
 @Setter
-@NoArgsConstructor 
+@NoArgsConstructor
+@Builder
+@AllArgsConstructor
 public class ItemCritico {
     
     @Id
