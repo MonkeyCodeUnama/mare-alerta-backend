@@ -52,14 +52,14 @@ services:
 
   weather-model:
     build:
-      context: ${IA_BUILD_CONTEXT:-../mare-alerta-ia}
+      context: ${IA_BUILD_CONTEXT:-./docker/weather-model}
       dockerfile: Dockerfile
     container_name: marealerta_ia
     restart: unless-stopped
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
-      - ${IA_BUILD_CONTEXT:-../mare-alerta-ia}/artifacts:/app/artifacts:ro
+      - ${IA_BUILD_CONTEXT:-./docker/weather-model}/artifacts:/app/artifacts:ro
     deploy:
       resources:
         limits:
@@ -80,10 +80,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      weather-model:
+        condition: service_healthy
     ports:
       - "8080:8080"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_URL: jdbc:postgresql://postgres:5432/marealerta_dev
