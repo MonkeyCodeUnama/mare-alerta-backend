@@ -4,6 +4,7 @@ import com.marealerta.backend.telemetria.dto.LeituraTelemetriaRequest;
 import com.marealerta.backend.telemetria.dto.LeituraTelemetriaResponse;
 import com.marealerta.backend.telemetria.dto.TelemetriaDashboardResponse;
 import com.marealerta.backend.telemetria.dto.TelemetriaPontoGraficoDTO;
+import com.marealerta.backend.telemetria.model.FonteTelemetria;
 import com.marealerta.backend.telemetria.model.LeituraTelemetria;
 import com.marealerta.backend.telemetria.model.TipoRegistroTelemetria;
 import com.marealerta.backend.telemetria.repository.LeituraTelemetriaRepository;
@@ -14,7 +15,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
 
@@ -53,23 +57,33 @@ public class TelemetriaService {
             throw new RuntimeException("Falha ao obter dados meteorológicos da API Open-Meteo.");
         }
 
+        OpenMeteoClient.OpenMeteoMarineResponse marineResponse = openMeteoClient.buscarDadosMarinhos(null, null);
+
         var current = response.current();
         LocalDateTime dataHoraAtual = LocalDateTime.parse(current.time());
 
-        LeituraTelemetria leituraAtual = LeituraTelemetria.builder()
-                .estacaoCodigo(ESTACAO_BELEM_CODIGO)
-                .estacaoNome(ESTACAO_BELEM_NOME)
-                .tipoRegistro(TipoRegistroTelemetria.OBSERVADO)
-                .nivelMare(estimarNivelMare(dataHoraAtual))
-                .precipitacao(current.precipitacao())
-                .temperatura(current.temperatura())
-                .ventoVelocidade(current.ventoVelocidade())
-                .ventoDirecao(current.ventoDirecao())
-                .dataHora(dataHoraAtual)
-                .build();
+        BigDecimal mareAtual = (marineResponse != null && marineResponse.current() != null && marineResponse.current().seaLevelHeightMsl() != null)
+                ? marineResponse.current().seaLevelHeightMsl()
+                : BigDecimal.ZERO;
+
+        LeituraTelemetria leituraAtual = repository.findByEstacaoCodigoAndFonteAndTipoRegistroAndDataHora(
+                ESTACAO_BELEM_CODIGO, FonteTelemetria.OPEN_METEO, TipoRegistroTelemetria.OBSERVADO, dataHoraAtual)
+                .orElseGet(() -> LeituraTelemetria.builder()
+                        .estacaoCodigo(ESTACAO_BELEM_CODIGO)
+                        .estacaoNome(ESTACAO_BELEM_NOME)
+                        .fonte(FonteTelemetria.OPEN_METEO)
+                        .tipoRegistro(TipoRegistroTelemetria.OBSERVADO)
+                        .dataHora(dataHoraAtual)
+                        .build());
+
+        leituraAtual.setNivelMare(mareAtual);
+        leituraAtual.setPrecipitacao(current.precipitacao());
+        leituraAtual.setTemperatura(current.temperatura());
+        leituraAtual.setVentoVelocidade(current.ventoVelocidade());
+        leituraAtual.setVentoDirecao(current.ventoDirecao());
 
         LeituraTelemetria salva = repository.save(leituraAtual);
-        sincronizarPrevisoesHorarias(response.hourly());
+        sincronizarPrevisoesHorarias(response.hourly(), marineResponse != null ? marineResponse.hourly() : null);
 
         return LeituraTelemetriaResponse.fromEntity(salva);
     }
@@ -84,12 +98,34 @@ public class TelemetriaService {
                             return repository.findTop1ByOrderByDataHoraDesc().orElseThrow();
                         }));
 
+        List<LeituraTelemetria> proximasPrevisoes = repository.findByTipoRegistroAndDataHoraBetweenOrderByDataHoraAsc(
+                TipoRegistroTelemetria.PREVISAO, ultimaLeitura.getDataHora(), ultimaLeitura.getDataHora().plusHours(3));
+
+        String tendencia = "ESTAVEL";
+        if (!proximasPrevisoes.isEmpty() && ultimaLeitura.getNivelMare() != null && proximasPrevisoes.get(0).getNivelMare() != null) {
+            double diferenca = proximasPrevisoes.get(0).getNivelMare().subtract(ultimaLeitura.getNivelMare()).doubleValue();
+            if (diferenca > 0.05) {
+                tendencia = "SUBINDO";
+            } else if (diferenca < -0.05) {
+                tendencia = "DESCENDO";
+            }
+        }
+
+        List<LeituraTelemetria> janela12h = repository.findByTipoRegistroAndDataHoraBetweenOrderByDataHoraAsc(
+                TipoRegistroTelemetria.PREVISAO, ultimaLeitura.getDataHora(), ultimaLeitura.getDataHora().plusHours(12));
+
+        LocalDateTime preamarHorario = janela12h.stream()
+                .filter(l -> l.getNivelMare() != null)
+                .max(Comparator.comparing(LeituraTelemetria::getNivelMare))
+                .map(LeituraTelemetria::getDataHora)
+                .orElse(ultimaLeitura.getDataHora());
+
         return TelemetriaDashboardResponse.builder()
                 .estacaoCodigo(ultimaLeitura.getEstacaoCodigo())
                 .estacaoNome(ultimaLeitura.getEstacaoNome())
                 .nivelAtual(ultimaLeitura.getNivelMare())
-                .tendencia("SUBINDO")
-                .preamarHorario(ultimaLeitura.getDataHora().plusHours(2))
+                .tendencia(tendencia)
+                .preamarHorario(preamarHorario)
                 .chuvaAtual(ultimaLeitura.getPrecipitacao())
                 .temperatura(ultimaLeitura.getTemperatura())
                 .ventoVelocidade(ultimaLeitura.getVentoVelocidade())
@@ -135,33 +171,43 @@ public class TelemetriaService {
                 .toList();
     }
 
-    private void sincronizarPrevisoesHorarias(OpenMeteoClient.HourlyData hourly) {
+    private void sincronizarPrevisoesHorarias(OpenMeteoClient.HourlyData hourly, OpenMeteoClient.MarineHourly marineHourly) {
         if (hourly == null || hourly.time() == null) return;
 
+        Map<String, BigDecimal> marePorHorario = new HashMap<>();
+        if (marineHourly != null && marineHourly.time() != null && marineHourly.seaLevelHeightMsl() != null) {
+            for (int j = 0; j < Math.min(marineHourly.time().size(), marineHourly.seaLevelHeightMsl().size()); j++) {
+                marePorHorario.put(marineHourly.time().get(j), marineHourly.seaLevelHeightMsl().get(j));
+            }
+        }
+
+        LocalDateTime agora = LocalDateTime.now();
         List<LeituraTelemetria> previsoes = new ArrayList<>();
         for (int i = 0; i < hourly.time().size(); i++) {
-            LocalDateTime dt = LocalDateTime.parse(hourly.time().get(i));
-            if (dt.isAfter(LocalDateTime.now())) {
-                previsoes.add(LeituraTelemetria.builder()
-                        .estacaoCodigo(ESTACAO_BELEM_CODIGO)
-                        .estacaoNome(ESTACAO_BELEM_NOME)
-                        .tipoRegistro(TipoRegistroTelemetria.PREVISAO)
-                        .nivelMare(estimarNivelMare(dt))
-                        .precipitacao(hourly.precipitacao().get(i))
-                        .temperatura(hourly.temperatura().get(i))
-                        .ventoVelocidade(hourly.ventoVelocidade().get(i))
-                        .ventoDirecao(hourly.ventoDirecao().get(i))
-                        .dataHora(dt)
-                        .build());
+            String timeStr = hourly.time().get(i);
+            LocalDateTime dt = LocalDateTime.parse(timeStr);
+            if (dt.isAfter(agora)) {
+                BigDecimal marePrevisao = marePorHorario.getOrDefault(timeStr, BigDecimal.ZERO);
+                LeituraTelemetria prev = repository.findByEstacaoCodigoAndFonteAndTipoRegistroAndDataHora(
+                        ESTACAO_BELEM_CODIGO, FonteTelemetria.OPEN_METEO, TipoRegistroTelemetria.PREVISAO, dt)
+                        .orElseGet(() -> LeituraTelemetria.builder()
+                                .estacaoCodigo(ESTACAO_BELEM_CODIGO)
+                                .estacaoNome(ESTACAO_BELEM_NOME)
+                                .fonte(FonteTelemetria.OPEN_METEO)
+                                .tipoRegistro(TipoRegistroTelemetria.PREVISAO)
+                                .dataHora(dt)
+                                .build());
+
+                prev.setNivelMare(marePrevisao);
+                prev.setPrecipitacao(hourly.precipitacao() != null && i < hourly.precipitacao().size() ? hourly.precipitacao().get(i) : BigDecimal.ZERO);
+                prev.setTemperatura(hourly.temperatura() != null && i < hourly.temperatura().size() ? hourly.temperatura().get(i) : BigDecimal.ZERO);
+                prev.setVentoVelocidade(hourly.ventoVelocidade() != null && i < hourly.ventoVelocidade().size() ? hourly.ventoVelocidade().get(i) : BigDecimal.ZERO);
+                prev.setVentoDirecao(hourly.ventoDirecao() != null && i < hourly.ventoDirecao().size() ? hourly.ventoDirecao().get(i) : BigDecimal.ZERO);
+
+                previsoes.add(prev);
             }
         }
         repository.saveAll(previsoes);
-    }
-
-    private BigDecimal estimarNivelMare(LocalDateTime dt) {
-        double hora = dt.getHour() + (dt.getMinute() / 60.0);
-        double nivelSimulado = 2.0 + 1.2 * Math.sin((hora / 12.0) * 2 * Math.PI);
-        return BigDecimal.valueOf(nivelSimulado).setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
     private String calcularNivelRisco(BigDecimal nivelMare, BigDecimal chuva) {

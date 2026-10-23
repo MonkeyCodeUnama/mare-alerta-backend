@@ -4,6 +4,7 @@ import com.marealerta.backend.telemetria.dto.LeituraTelemetriaRequest;
 import com.marealerta.backend.telemetria.dto.LeituraTelemetriaResponse;
 import com.marealerta.backend.telemetria.dto.TelemetriaDashboardResponse;
 import com.marealerta.backend.telemetria.dto.TelemetriaPontoGraficoDTO;
+import com.marealerta.backend.telemetria.model.FonteTelemetria;
 import com.marealerta.backend.telemetria.model.LeituraTelemetria;
 import com.marealerta.backend.telemetria.model.TipoRegistroTelemetria;
 import com.marealerta.backend.telemetria.repository.LeituraTelemetriaRepository;
@@ -23,6 +24,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -94,10 +97,13 @@ class TelemetriaServiceTest {
     }
 
     @Test
-    @DisplayName("Deve sincronizar dados meteorológicos da API Open-Meteo")
+    @DisplayName("Deve sincronizar dados meteorológicos e marinhos da API Open-Meteo")
     void deveSincronizarOpenMeteoComSucesso() {
+        String horaAtualStr = LocalDateTime.now().withMinute(0).withSecond(0).withNano(0).toString();
+        String horaProxStr = LocalDateTime.now().plusHours(1).withMinute(0).withSecond(0).withNano(0).toString();
+
         OpenMeteoClient.CurrentUnits current = new OpenMeteoClient.CurrentUnits(
-                LocalDateTime.now().toString(),
+                horaAtualStr,
                 BigDecimal.valueOf(12.0),
                 BigDecimal.valueOf(30.0),
                 BigDecimal.valueOf(80.0),
@@ -111,7 +117,7 @@ class TelemetriaServiceTest {
         );
 
         OpenMeteoClient.HourlyData hourly = new OpenMeteoClient.HourlyData(
-                List.of(LocalDateTime.now().plusHours(1).toString()),
+                List.of(horaProxStr),
                 List.of(BigDecimal.valueOf(2.0)),
                 List.of(BigDecimal.valueOf(29.0)),
                 List.of(BigDecimal.valueOf(15.0)),
@@ -120,12 +126,23 @@ class TelemetriaServiceTest {
 
         OpenMeteoClient.OpenMeteoResponse apiResponse = new OpenMeteoClient.OpenMeteoResponse(current, hourly);
 
+        OpenMeteoClient.MarineCurrent marineCurrent = new OpenMeteoClient.MarineCurrent(horaAtualStr, BigDecimal.valueOf(2.15));
+        OpenMeteoClient.MarineHourly marineHourly = new OpenMeteoClient.MarineHourly(
+                List.of(horaProxStr),
+                List.of(BigDecimal.valueOf(2.45))
+        );
+        OpenMeteoClient.OpenMeteoMarineResponse marineResponse = new OpenMeteoClient.OpenMeteoMarineResponse(marineCurrent, marineHourly);
+
         when(openMeteoClient.buscarDadosAtuaisEPrevisao()).thenReturn(apiResponse);
+        when(openMeteoClient.buscarDadosMarinhos(any(), any())).thenReturn(marineResponse);
+        when(repository.findByEstacaoCodigoAndFonteAndTipoRegistroAndDataHora(any(), any(), any(), any()))
+                .thenReturn(Optional.empty());
         when(repository.save(any(LeituraTelemetria.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         LeituraTelemetriaResponse response = telemetriaService.sincronizarOpenMeteo();
 
         assertThat(response).isNotNull();
+        assertThat(response.getNivelMare()).isEqualByComparingTo(BigDecimal.valueOf(2.15));
         assertThat(response.getPrecipitacao()).isEqualByComparingTo(BigDecimal.valueOf(12.0));
         assertThat(response.getTemperatura()).isEqualByComparingTo(BigDecimal.valueOf(30.0));
         verify(repository).save(any(LeituraTelemetria.class));
@@ -145,11 +162,32 @@ class TelemetriaServiceTest {
     }
 
     @Test
-    @DisplayName("Deve retornar dados consolidados do dashboard a partir da última leitura")
+    @DisplayName("Deve retornar dados consolidados do dashboard com tendencia e preamar dinamicos")
     void deveRetornarDashboardComSucesso() {
+        LocalDateTime agora = LocalDateTime.now();
+        leituraBase.setDataHora(agora);
+
+        LeituraTelemetria previsaoProxima = LeituraTelemetria.builder()
+                .estacaoCodigo("BELEM-CENTRO")
+                .tipoRegistro(TipoRegistroTelemetria.PREVISAO)
+                .nivelMare(BigDecimal.valueOf(2.70))
+                .dataHora(agora.plusHours(1))
+                .build();
+
+        LeituraTelemetria previsaoPico = LeituraTelemetria.builder()
+                .estacaoCodigo("BELEM-CENTRO")
+                .tipoRegistro(TipoRegistroTelemetria.PREVISAO)
+                .nivelMare(BigDecimal.valueOf(3.10))
+                .dataHora(agora.plusHours(3))
+                .build();
+
         when(repository.findTop1ByEstacaoCodigoAndTipoRegistroOrderByDataHoraDesc(
                 "BELEM-CENTRO", TipoRegistroTelemetria.OBSERVADO))
                 .thenReturn(Optional.of(leituraBase));
+
+        when(repository.findByTipoRegistroAndDataHoraBetweenOrderByDataHoraAsc(
+                eq(TipoRegistroTelemetria.PREVISAO), eq(agora), any()))
+                .thenReturn(List.of(previsaoProxima, previsaoPico));
 
         TelemetriaDashboardResponse dashboard = telemetriaService.obterDashboard();
 
@@ -159,6 +197,34 @@ class TelemetriaServiceTest {
         assertThat(dashboard.getChuvaAtual()).isEqualByComparingTo(BigDecimal.valueOf(5.0));
         assertThat(dashboard.getNivelRisco()).isEqualTo("BAIXO");
         assertThat(dashboard.getTendencia()).isEqualTo("SUBINDO");
+        assertThat(dashboard.getPreamarHorario()).isEqualTo(agora.plusHours(3));
+    }
+
+    @Test
+    @DisplayName("Deve calcular tendencia como DESCENDO quando proxima previsao for menor")
+    void deveCalcularTendenciaDescendo() {
+        LocalDateTime agora = LocalDateTime.now();
+        leituraBase.setDataHora(agora);
+        leituraBase.setNivelMare(BigDecimal.valueOf(2.80));
+
+        LeituraTelemetria previsaoMenor = LeituraTelemetria.builder()
+                .estacaoCodigo("BELEM-CENTRO")
+                .tipoRegistro(TipoRegistroTelemetria.PREVISAO)
+                .nivelMare(BigDecimal.valueOf(2.40))
+                .dataHora(agora.plusHours(1))
+                .build();
+
+        when(repository.findTop1ByEstacaoCodigoAndTipoRegistroOrderByDataHoraDesc(
+                "BELEM-CENTRO", TipoRegistroTelemetria.OBSERVADO))
+                .thenReturn(Optional.of(leituraBase));
+
+        when(repository.findByTipoRegistroAndDataHoraBetweenOrderByDataHoraAsc(
+                eq(TipoRegistroTelemetria.PREVISAO), eq(agora), any()))
+                .thenReturn(List.of(previsaoMenor));
+
+        TelemetriaDashboardResponse dashboard = telemetriaService.obterDashboard();
+
+        assertThat(dashboard.getTendencia()).isEqualTo("DESCENDO");
     }
 
     @Test
@@ -188,4 +254,3 @@ class TelemetriaServiceTest {
         verify(repository).findTop10ByEstacaoCodigoOrderByDataHoraDesc("BELEM-CENTRO");
     }
 }
-

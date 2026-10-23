@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import com.marealerta.backend.telemetria.model.FonteTelemetria;
 import com.marealerta.backend.telemetria.model.LeituraTelemetria;
 import com.marealerta.backend.telemetria.model.TipoRegistroTelemetria;
 
@@ -23,4 +24,7 @@ public interface LeituraTelemetriaRepository extends JpaRepository<LeituraTeleme
 
     List<LeituraTelemetria> findByTipoRegistroAndDataHoraBetweenOrderByDataHoraAsc(
             TipoRegistroTelemetria tipoRegistro, LocalDateTime inicio, LocalDateTime fim);
+
+    Optional<LeituraTelemetria> findByEstacaoCodigoAndFonteAndTipoRegistroAndDataHora(
+            String estacaoCodigo, FonteTelemetria fonte, TipoRegistroTelemetria tipoRegistro, LocalDateTime dataHora);
 }

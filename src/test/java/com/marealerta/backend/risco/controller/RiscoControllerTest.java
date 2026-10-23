@@ -39,7 +39,7 @@ class RiscoControllerTest {
     }
 
     @Test
-    @DisplayName("GET /risco/atual deve retornar 200 OK com nível de risco e probabilidade")
+    @DisplayName("GET /risco/atual deve retornar 200 OK com nivel de risco e probabilidade")
     void deveConsultarRiscoAtualComSucesso() throws Exception {
         RiscoResponse response = RiscoResponse.builder()
                 .bairro("BELEM_CENTRO")
@@ -62,5 +62,50 @@ class RiscoControllerTest {
                 .andExpect(jsonPath("$.probabilidadeChuva").value(0.45))
                 .andExpect(jsonPath("$.alertaEmitido").value(false));
     }
-}
 
+    @Test
+    @DisplayName("GET /risco/atual sem parametro localidade deve usar o valor default BELEM_CENTRO")
+    void deveUsarLocalidadeDefault() throws Exception {
+        RiscoResponse response = RiscoResponse.builder()
+                .bairro("BELEM_CENTRO")
+                .nivelRisco(NivelRisco.BAIXO)
+                .probabilidadeChuva(0.10)
+                .nivelMarePrevistoMetros(BigDecimal.valueOf(2.00))
+                .descricaoCenario("Condições normais.")
+                .horarioPicoPrevisto(LocalDateTime.now().plusHours(1))
+                .alertaEmitido(false)
+                .build();
+
+        when(riscoService.processarEObterRiscoParaLocalidade("BELEM_CENTRO")).thenReturn(response);
+
+        mockMvc.perform(get("/risco/atual")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bairro").value("BELEM_CENTRO"))
+                .andExpect(jsonPath("$.nivelRisco").value("BAIXO"));
+    }
+
+    @Test
+    @DisplayName("GET /risco/atual para localidade especifica com risco ALTO")
+    void deveConsultarRiscoAltoParaLocalidadeEspecifica() throws Exception {
+        RiscoResponse response = RiscoResponse.builder()
+                .bairro("CIDADE_VELHA")
+                .nivelRisco(NivelRisco.ALTO)
+                .probabilidadeChuva(0.85)
+                .nivelMarePrevistoMetros(BigDecimal.valueOf(3.20))
+                .descricaoCenario("ALERTA CRÍTICO: Risco iminente de alagamento.")
+                .horarioPicoPrevisto(LocalDateTime.now().plusHours(1))
+                .alertaEmitido(true)
+                .build();
+
+        when(riscoService.processarEObterRiscoParaLocalidade("CIDADE_VELHA")).thenReturn(response);
+
+        mockMvc.perform(get("/risco/atual")
+                        .param("localidade", "CIDADE_VELHA")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bairro").value("CIDADE_VELHA"))
+                .andExpect(jsonPath("$.nivelRisco").value("ALTO"))
+                .andExpect(jsonPath("$.alertaEmitido").value(true));
+    }
+}

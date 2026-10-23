@@ -8,6 +8,7 @@ import com.marealerta.backend.risco.model.PrevisaoChuvaMl;
 import com.marealerta.backend.risco.model.StatusQualidadeMl;
 import com.marealerta.backend.risco.repository.PrevisaoChuvaMlRepository;
 import com.marealerta.backend.telemetria.dto.TelemetriaDashboardResponse;
+import com.marealerta.backend.telemetria.service.OpenMeteoClient;
 import com.marealerta.backend.telemetria.service.TelemetriaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,9 +22,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,10 +42,14 @@ class RiscoServiceTest {
     @Mock
     private TelemetriaService telemetriaService;
 
+    @Mock
+    private OpenMeteoClient openMeteoClient;
+
     @InjectMocks
     private RiscoService riscoService;
 
     private TelemetriaDashboardResponse telemetriaPadrao;
+    private OpenMeteoClient.GfsFeaturesSnapshot gfsSnapshotPadrao;
 
     @BeforeEach
     void setUp() {
@@ -54,6 +62,22 @@ class RiscoServiceTest {
                 .ventoVelocidade(BigDecimal.valueOf(12.5))
                 .ventoDirecao(BigDecimal.valueOf(90.0))
                 .build();
+
+        Map<String, BigDecimal> features = Map.of(
+                "temperature_2m", BigDecimal.valueOf(28.0),
+                "relative_humidity_2m", BigDecimal.valueOf(80.0),
+                "dew_point_2m", BigDecimal.valueOf(24.0),
+                "pressure_msl", BigDecimal.valueOf(1012.0),
+                "surface_pressure", BigDecimal.valueOf(1010.0),
+                "cloud_cover", BigDecimal.valueOf(50.0),
+                "cloud_cover_low", BigDecimal.valueOf(20.0),
+                "cloud_cover_mid", BigDecimal.valueOf(10.0),
+                "cloud_cover_high", BigDecimal.valueOf(30.0),
+                "wind_speed_10m", BigDecimal.valueOf(14.0)
+        );
+        Map<String, String> units = Map.of("temperature_2m", "°C", "precipitation", "mm");
+
+        gfsSnapshotPadrao = new OpenMeteoClient.GfsFeaturesSnapshot("2026-10-22T21:00:00Z", features, units);
     }
 
     @Test
@@ -80,6 +104,7 @@ class RiscoServiceTest {
                 .build();
 
         when(telemetriaService.obterDashboard()).thenReturn(telemetriaCritica);
+        when(openMeteoClient.buscarFeaturesGfsAtuais(anyDouble(), anyDouble())).thenReturn(gfsSnapshotPadrao);
         when(mlApiClient.solicitarPrevisao(any(PrevisaoMlRequest.class))).thenReturn(mlResponse);
 
         RiscoResponse response = riscoService.processarEObterRiscoParaLocalidade("BELEM_CENTRO");
@@ -117,6 +142,7 @@ class RiscoServiceTest {
                 .build();
 
         when(telemetriaService.obterDashboard()).thenReturn(telemetriaPadrao);
+        when(openMeteoClient.buscarFeaturesGfsAtuais(anyDouble(), anyDouble())).thenReturn(gfsSnapshotPadrao);
         when(mlApiClient.solicitarPrevisao(any(PrevisaoMlRequest.class))).thenReturn(mlResponse);
 
         RiscoResponse response = riscoService.processarEObterRiscoParaLocalidade("BELEM_CENTRO");
@@ -141,6 +167,7 @@ class RiscoServiceTest {
                 .build();
 
         when(telemetriaService.obterDashboard()).thenReturn(telemetriaPadrao);
+        when(openMeteoClient.buscarFeaturesGfsAtuais(anyDouble(), anyDouble())).thenReturn(gfsSnapshotPadrao);
         when(mlApiClient.solicitarPrevisao(any(PrevisaoMlRequest.class))).thenReturn(mlResponse);
 
         RiscoResponse response = riscoService.processarEObterRiscoParaLocalidade("BELEM_CENTRO");
@@ -166,6 +193,7 @@ class RiscoServiceTest {
                 .build();
 
         when(telemetriaService.obterDashboard()).thenReturn(telemetriaPadrao);
+        when(openMeteoClient.buscarFeaturesGfsAtuais(anyDouble(), anyDouble())).thenReturn(gfsSnapshotPadrao);
         when(mlApiClient.solicitarPrevisao(any(PrevisaoMlRequest.class))).thenReturn(mlResponse);
 
         RiscoResponse response = riscoService.processarEObterRiscoParaLocalidade("BELEM_CENTRO");
@@ -176,35 +204,25 @@ class RiscoServiceTest {
     }
 
     @Test
-    @DisplayName("Deve acionar fallback heurístico com status DEGRADED quando serviço de ML falhar")
-    void deveAcionarFallbackHeuristicoQuandoMlFalhar() {
-        TelemetriaDashboardResponse telemetriaComChuva = TelemetriaDashboardResponse.builder()
-                .estacaoCodigo("BELEM-CENTRO")
-                .nivelAtual(BigDecimal.valueOf(2.80))
-                .chuvaAtual(BigDecimal.valueOf(25.0))
-                .build();
-
-        when(telemetriaService.obterDashboard()).thenReturn(telemetriaComChuva);
+    @DisplayName("Deve propagar excecao quando servico de ML falhar sem criar dados mockados")
+    void devePropagarExcecaoQuandoMlFalhar() {
+        when(telemetriaService.obterDashboard()).thenReturn(telemetriaPadrao);
+        when(openMeteoClient.buscarFeaturesGfsAtuais(anyDouble(), anyDouble())).thenReturn(gfsSnapshotPadrao);
         when(mlApiClient.solicitarPrevisao(any(PrevisaoMlRequest.class)))
                 .thenThrow(new RuntimeException("Connection refused - FastAPI offline"));
 
-        RiscoResponse response = riscoService.processarEObterRiscoParaLocalidade("BELEM_CENTRO");
+        assertThatThrownBy(() -> riscoService.processarEObterRiscoParaLocalidade("BELEM_CENTRO"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Connection refused");
 
-        assertThat(response).isNotNull();
-        assertThat(response.getNivelRisco()).isIn(NivelRisco.MEDIO, NivelRisco.ALTO);
-        assertThat(response.getProbabilidadeChuva()).isNotNull();
-
-        ArgumentCaptor<PrevisaoChuvaMl> captor = ArgumentCaptor.forClass(PrevisaoChuvaMl.class);
-        verify(previsaoChuvaMlRepository).save(captor.capture());
-        PrevisaoChuvaMl salva = captor.getValue();
-        assertThat(salva.getStatusQualidade()).isEqualTo(StatusQualidadeMl.DEGRADADO);
-        assertThat(salva.getVersaoModelo()).isEqualTo("fallback-heuristic-v1");
+        verify(previsaoChuvaMlRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("Deve enviar feature_time truncado para hora exata UTC exigido pelo runtime da IA")
-    void deveTruncarFeatureTimeParaHoraExataUtc() {
+    @DisplayName("Deve enviar request de predicao com dados reais extraidos da Open-Meteo GFS")
+    void deveEnviarRequestPredicaoComDadosReais() {
         when(telemetriaService.obterDashboard()).thenReturn(telemetriaPadrao);
+        when(openMeteoClient.buscarFeaturesGfsAtuais(anyDouble(), anyDouble())).thenReturn(gfsSnapshotPadrao);
         when(mlApiClient.solicitarPrevisao(any(PrevisaoMlRequest.class))).thenReturn(
                 PrevisaoMlResponse.builder()
                         .rainProbability(0.2)
@@ -218,8 +236,9 @@ class RiscoServiceTest {
         verify(mlApiClient).solicitarPrevisao(captor.capture());
         PrevisaoMlRequest sentRequest = captor.getValue();
 
-        assertThat(sentRequest.featureTime()).matches(".+T\\d{2}:00:00Z");
+        assertThat(sentRequest.featureTime()).isEqualTo("2026-10-22T21:00:00Z");
         assertThat(sentRequest.schemaVersion()).isEqualTo("rain-hourly-v1");
         assertThat(sentRequest.horizonHours()).isEqualTo(1);
+        assertThat(sentRequest.features()).containsKey("temperature_2m");
     }
 }
