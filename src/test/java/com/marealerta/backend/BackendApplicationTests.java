@@ -2,6 +2,7 @@ package com.marealerta.backend;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -10,6 +11,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -21,10 +24,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@EnabledIf("isPostgresAvailable")
 class BackendApplicationTests {
 
 	@Autowired
 	private MockMvc mockMvc;
+
+	static boolean isPostgresAvailable() {
+		try (Socket socket = new Socket()) {
+			socket.connect(new InetSocketAddress("localhost", 5432), 500);
+			return true;
+		} catch (Exception e) {
+			return false;
+		}
+	}
 
 	@Test
 	@DisplayName("carrega o contexto com migrations Flyway")

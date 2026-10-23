@@ -1,6 +1,5 @@
 package com.marealerta.backend.itens.service;
 
-import com.marealerta.backend.checklist.dto.ItemChecklistRequest;
 import com.marealerta.backend.estabelecimento.model.Estabelecimento;
 import com.marealerta.backend.estabelecimento.repository.EstabelecimentoRepository;
 import com.marealerta.backend.itens.dto.ItemCriticoRequest;
@@ -33,7 +32,6 @@ public class ItemCriticoService {
         itemCritico = itensCriticosRepository.save(itemCritico);
 
         return ItemCriticoResponse.fromEntity(itemCritico);
-
     }
 
     public List<ItemCriticoResponse> listar(Long estabelecimentoId){
@@ -46,7 +44,6 @@ public class ItemCriticoService {
         return itens.stream()
                 .map(ItemCriticoResponse::fromEntity)
                 .collect(Collectors.toList());
-
     }
 
     public ItemCriticoResponse buscarPorId(Long id){
@@ -58,25 +55,21 @@ public class ItemCriticoService {
 
     public ItemCriticoResponse atualizar(Long id, ItemCriticoRequest itemCriticoRequest){
         ItemCritico itemCritico = itensCriticosRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Item critico nao encontradi"));
+                .orElseThrow(() -> new RuntimeException("item critico nao encontrado"));
 
         itemCritico.setNome(itemCriticoRequest.getNome());
         itemCritico.setDescricao(itemCriticoRequest.getDescricao());
 
-        ItemCritico itemCriticoAtualizado  = itensCriticosRepository.save(itemCritico);
+        ItemCritico itemCriticoAtualizado = itensCriticosRepository.save(itemCritico);
 
         return ItemCriticoResponse.fromEntity(itemCriticoAtualizado);
     }
 
     public void deletar(Long id){
         if(!itensCriticosRepository.existsById(id)){
-            throw new RuntimeException("item de checklist nao encontrado");
+            throw new RuntimeException("item critico nao encontrado");
         }
 
         itensCriticosRepository.deleteById(id);
-
-
     }
-
-
 }
