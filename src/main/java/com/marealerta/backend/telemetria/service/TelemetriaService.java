@@ -88,7 +88,7 @@ public class TelemetriaService {
         return LeituraTelemetriaResponse.fromEntity(salva);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public TelemetriaDashboardResponse obterDashboard() {
         LeituraTelemetria ultimaLeitura = repository.findTop1ByEstacaoCodigoAndTipoRegistroOrderByDataHoraDesc(
                         ESTACAO_BELEM_CODIGO, TipoRegistroTelemetria.OBSERVADO)
