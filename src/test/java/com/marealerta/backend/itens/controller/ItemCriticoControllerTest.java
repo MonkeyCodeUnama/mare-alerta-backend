@@ -44,8 +44,8 @@ class ItemCriticoControllerTest {
     }
 
     @Test
-    @DisplayName("Deve registrar item critico")
-    void deveRegistrarItemCritico() throws Exception {
+    @DisplayName("Deve registrar item critico via POST /itemcritico com 201 Created")
+    void deveRegistrarItemCriticoRotaPrincipal() throws Exception {
         ItemCriticoRequest request = ItemCriticoRequest.builder()
                 .estabelecimentoId(1L)
                 .nome("Freezer")
@@ -61,16 +61,42 @@ class ItemCriticoControllerTest {
 
         when(itemCriticoService.criar(any(ItemCriticoRequest.class))).thenReturn(response);
 
-        mockMvc.perform(post("/itemcritico/registrar")
+        mockMvc.perform(post("/itemcritico")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(10L))
                 .andExpect(jsonPath("$.nome").value("Freezer"));
     }
 
     @Test
-    @DisplayName("Deve listar itens criticos de um estabelecimento")
+    @DisplayName("Deve registrar item critico via POST /itemcritico/registrar com 201 Created")
+    void deveRegistrarItemCriticoRotaAlias() throws Exception {
+        ItemCriticoRequest request = ItemCriticoRequest.builder()
+                .estabelecimentoId(1L)
+                .nome("Motor da Câmara Fria")
+                .descricao("Elevado 50cm")
+                .build();
+
+        ItemCriticoResponse response = ItemCriticoResponse.builder()
+                .id(11L)
+                .estabelecimentoId(1L)
+                .nome("Motor da Câmara Fria")
+                .descricao("Elevado 50cm")
+                .build();
+
+        when(itemCriticoService.criar(any(ItemCriticoRequest.class))).thenReturn(response);
+
+        mockMvc.perform(post("/itemcritico/registrar")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(11L))
+                .andExpect(jsonPath("$.nome").value("Motor da Câmara Fria"));
+    }
+
+    @Test
+    @DisplayName("Deve listar itens criticos via GET /itemcritico")
     void deveListarItensCriticos() throws Exception {
         ItemCriticoResponse response = ItemCriticoResponse.builder()
                 .id(10L)
@@ -81,7 +107,25 @@ class ItemCriticoControllerTest {
 
         when(itemCriticoService.listar(1L)).thenReturn(List.of(response));
 
-        mockMvc.perform(get("/itemcritico/listar").param("estabelecimentoId", "1"))
+        mockMvc.perform(get("/itemcritico").param("estabelecimentoId", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(10L))
+                .andExpect(jsonPath("$[0].nome").value("Freezer"));
+    }
+
+    @Test
+    @DisplayName("Deve listar itens criticos via GET /itemcritico/listar com alias estabelcimentoId")
+    void deveListarItensCriticosComAlias() throws Exception {
+        ItemCriticoResponse response = ItemCriticoResponse.builder()
+                .id(10L)
+                .estabelecimentoId(1L)
+                .nome("Freezer")
+                .descricao("No chão")
+                .build();
+
+        when(itemCriticoService.listar(1L)).thenReturn(List.of(response));
+
+        mockMvc.perform(get("/itemcritico/listar").param("estabelcimentoId", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(10L))
                 .andExpect(jsonPath("$[0].nome").value("Freezer"));

@@ -1,7 +1,12 @@
 package com.marealerta.backend.itens.dto;
 
-import jakarta.validation.constraints.NotNull;
-import lombok.*;
+import com.fasterxml.jackson.annotation.JsonAlias;
+import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -10,12 +15,13 @@ import lombok.*;
 @Builder
 public class ItemCriticoRequest {
 
+    @NotBlank(message = "O nome do item é obrigatório")
+    @JsonAlias({"name", "itemNome"})
     private String nome;
 
+    @JsonAlias({"description"})
     private String descricao;
 
-    @NotNull(message = "O ID do estabelecimento é obrigatório")
+    @JsonAlias({"establishmentId", "estabelcimentoId"})
     private Long estabelecimentoId;
-
-
 }

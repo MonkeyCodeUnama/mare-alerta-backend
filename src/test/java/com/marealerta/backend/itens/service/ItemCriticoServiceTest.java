@@ -77,13 +77,27 @@ class ItemCriticoServiceTest {
     }
 
     @Test
+    @DisplayName("Deve lancar excecao ao criar item critico sem estabelecimentoId")
+    void deveLancarExcecaoAoCriarSemEstabelecimentoId() {
+        ItemCriticoRequest requestSemId = ItemCriticoRequest.builder()
+                .nome("Freezer")
+                .build();
+
+        assertThatThrownBy(() -> itemCriticoService.criar(requestSemId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("ID do estabelecimento é obrigatório");
+
+        verify(itensCriticosRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("Deve lancar excecao ao criar item critico com estabelecimento inexistente")
     void deveLancarExcecaoAoCriarComEstabelecimentoInexistente() {
         when(estabelecimentoRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> itemCriticoService.criar(request))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("estabelecimento nao encontrado");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Estabelecimento não encontrado");
 
         verify(itensCriticosRepository, never()).save(any());
     }
@@ -97,6 +111,25 @@ class ItemCriticoServiceTest {
 
         assertThat(lista).hasSize(1);
         assertThat(lista.get(0).getNome()).isEqualTo("Freezer Industrial");
+    }
+
+    @Test
+    @DisplayName("Deve retornar lista vazia quando estabelecimentoId for nulo")
+    void deveRetornarListaVaziaQuandoEstabelecimentoIdNulo() {
+        List<ItemCriticoResponse> lista = itemCriticoService.listar(null);
+
+        assertThat(lista).isEmpty();
+        verify(itensCriticosRepository, never()).findByEstabelecimentoId(any());
+    }
+
+    @Test
+    @DisplayName("Deve retornar lista vazia quando estabelecimento nao possuir itens cadastrados")
+    void deveRetornarListaVaziaQuandoNaoHouverItens() {
+        when(itensCriticosRepository.findByEstabelecimentoId(1L)).thenReturn(List.of());
+
+        List<ItemCriticoResponse> lista = itemCriticoService.listar(1L);
+
+        assertThat(lista).isEmpty();
     }
 
     @Test
@@ -117,8 +150,8 @@ class ItemCriticoServiceTest {
         when(itensCriticosRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> itemCriticoService.buscarPorId(99L))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("item critico nao encontrado");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Item crítico não encontrado");
     }
 
     @Test
@@ -163,8 +196,8 @@ class ItemCriticoServiceTest {
         when(itensCriticosRepository.existsById(99L)).thenReturn(false);
 
         assertThatThrownBy(() -> itemCriticoService.deletar(99L))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("item critico nao encontrado");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Item crítico não encontrado");
 
         verify(itensCriticosRepository, never()).deleteById(any());
     }

@@ -8,9 +8,9 @@ import com.marealerta.backend.itens.model.ItemCritico;
 import com.marealerta.backend.itens.repository.ItensCriticosRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -19,13 +19,18 @@ public class ItemCriticoService {
     private final ItensCriticosRepository itensCriticosRepository;
     private final EstabelecimentoRepository estabelecimentoRepository;
 
-    public ItemCriticoResponse criar(ItemCriticoRequest itemCriticoRequest){
+    @Transactional
+    public ItemCriticoResponse criar(ItemCriticoRequest itemCriticoRequest) {
+        if (itemCriticoRequest == null || itemCriticoRequest.getEstabelecimentoId() == null) {
+            throw new IllegalArgumentException("O ID do estabelecimento é obrigatório");
+        }
+
         Estabelecimento estab = estabelecimentoRepository.findById(itemCriticoRequest.getEstabelecimentoId())
-                .orElseThrow(() -> new RuntimeException("estabelecimento nao encontrado"));
+                .orElseThrow(() -> new IllegalArgumentException("Estabelecimento não encontrado com ID: " + itemCriticoRequest.getEstabelecimentoId()));
 
         ItemCritico itemCritico = ItemCritico.builder()
-                .nome(itemCriticoRequest.getNome())
-                .descricao(itemCriticoRequest.getDescricao())
+                .nome(itemCriticoRequest.getNome() != null ? itemCriticoRequest.getNome().trim() : "")
+                .descricao(itemCriticoRequest.getDescricao() != null ? itemCriticoRequest.getDescricao().trim() : null)
                 .estabelecimento(estab)
                 .build();
 
@@ -34,40 +39,51 @@ public class ItemCriticoService {
         return ItemCriticoResponse.fromEntity(itemCritico);
     }
 
-    public List<ItemCriticoResponse> listar(Long estabelecimentoId){
-        List<ItemCritico> itens = itensCriticosRepository.findByEstabelecimentoId(estabelecimentoId);
+    @Transactional(readOnly = true)
+    public List<ItemCriticoResponse> listar(Long estabelecimentoId) {
+        if (estabelecimentoId == null) {
+            return List.of();
+        }
 
-        if(itens == null){
-            throw new RuntimeException("nao ha itens criticos cadastrados");
+        List<ItemCritico> itens = itensCriticosRepository.findByEstabelecimentoId(estabelecimentoId);
+        if (itens == null) {
+            return List.of();
         }
 
         return itens.stream()
                 .map(ItemCriticoResponse::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
     }
 
-    public ItemCriticoResponse buscarPorId(Long id){
+    @Transactional(readOnly = true)
+    public ItemCriticoResponse buscarPorId(Long id) {
         ItemCritico itemCritico = itensCriticosRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("item critico nao encontrado"));
+                .orElseThrow(() -> new IllegalArgumentException("Item crítico não encontrado com ID: " + id));
 
         return ItemCriticoResponse.fromEntity(itemCritico);
     }
 
-    public ItemCriticoResponse atualizar(Long id, ItemCriticoRequest itemCriticoRequest){
+    @Transactional
+    public ItemCriticoResponse atualizar(Long id, ItemCriticoRequest itemCriticoRequest) {
         ItemCritico itemCritico = itensCriticosRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("item critico nao encontrado"));
+                .orElseThrow(() -> new IllegalArgumentException("Item crítico não encontrado com ID: " + id));
 
-        itemCritico.setNome(itemCriticoRequest.getNome());
-        itemCritico.setDescricao(itemCriticoRequest.getDescricao());
+        if (itemCriticoRequest.getNome() != null && !itemCriticoRequest.getNome().isBlank()) {
+            itemCritico.setNome(itemCriticoRequest.getNome().trim());
+        }
+        if (itemCriticoRequest.getDescricao() != null) {
+            itemCritico.setDescricao(itemCriticoRequest.getDescricao().trim());
+        }
 
         ItemCritico itemCriticoAtualizado = itensCriticosRepository.save(itemCritico);
 
         return ItemCriticoResponse.fromEntity(itemCriticoAtualizado);
     }
 
-    public void deletar(Long id){
-        if(!itensCriticosRepository.existsById(id)){
-            throw new RuntimeException("item critico nao encontrado");
+    @Transactional
+    public void deletar(Long id) {
+        if (!itensCriticosRepository.existsById(id)) {
+            throw new IllegalArgumentException("Item crítico não encontrado com ID: " + id);
         }
 
         itensCriticosRepository.deleteById(id);

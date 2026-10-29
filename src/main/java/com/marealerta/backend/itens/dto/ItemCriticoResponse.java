@@ -1,9 +1,11 @@
 package com.marealerta.backend.itens.dto;
 
-import com.marealerta.backend.checklist.dto.ItemChecklistResponse;
-import com.marealerta.backend.checklist.model.ItemChecklist;
 import com.marealerta.backend.itens.model.ItemCritico;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -13,12 +15,13 @@ import lombok.*;
 public class ItemCriticoResponse {
 
     private Long id;
-
     private String nome;
-
     private String descricao;
-
     private Long estabelecimentoId;
+
+    public String getName() { return nome; }
+    public String getDescription() { return descricao; }
+    public Long getEstablishmentId() { return estabelecimentoId; }
 
     public static ItemCriticoResponse fromEntity(ItemCritico item) {
         if (item == null) return null;
