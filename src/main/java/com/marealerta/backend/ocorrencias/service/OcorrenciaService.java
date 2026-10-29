@@ -1,4 +1,5 @@
 package com.marealerta.backend.ocorrencias.service;
+
 import com.marealerta.backend.estabelecimento.model.Estabelecimento;
 import com.marealerta.backend.estabelecimento.repository.EstabelecimentoRepository;
 import com.marealerta.backend.ocorrencias.dto.OcorrenciaFotoResponse;
@@ -6,6 +7,7 @@ import com.marealerta.backend.ocorrencias.dto.OcorrenciaRequest;
 import com.marealerta.backend.ocorrencias.dto.OcorrenciaResponse;
 import com.marealerta.backend.ocorrencias.model.Ocorrencia;
 import com.marealerta.backend.ocorrencias.model.OcorrenciaFoto;
+import com.marealerta.backend.ocorrencias.model.StatusOcorrencia;
 import com.marealerta.backend.ocorrencias.repository.OcorrenciaFotoRepository;
 import com.marealerta.backend.ocorrencias.repository.OcorrenciaRepository;
 import com.marealerta.backend.usuario.model.Usuario;
@@ -22,6 +24,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -76,6 +79,49 @@ public class OcorrenciaService {
         return OcorrenciaResponse.fromEntity(ocorrencia);
     }
 
+    @Transactional(readOnly = true)
+    public List<OcorrenciaResponse> listarPorUsuario(Usuario usuario, StatusOcorrencia status) {
+        if (usuario == null || usuario.getEstabelecimento() == null || usuario.getEstabelecimento().getId() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "usuario nao autenticado ou sem estabelecimento");
+        }
+
+        Long estabId = usuario.getEstabelecimento().getId();
+        List<Ocorrencia> ocorrencias;
+        if (status != null) {
+            ocorrencias = oRepository.findByEstabelecimentoIdAndStatus(estabId, status);
+        } else {
+            ocorrencias = oRepository.findByEstabelecimentoIdOrderByDataOcorrenciaDescHoraInicioDesc(estabId);
+        }
+
+        return ocorrencias.stream()
+                .map(OcorrenciaResponse::fromEntity)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public OcorrenciaResponse buscarPorId(Usuario usuario, Long id) {
+        if (usuario == null || usuario.getEstabelecimento() == null || usuario.getEstabelecimento().getId() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "usuario nao autenticado ou sem estabelecimento");
+        }
+
+        Ocorrencia ocorrencia = oRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("ocorrencia nao encontrada"));
+
+        if (!Objects.equals(ocorrencia.getEstabelecimento().getId(), usuario.getEstabelecimento().getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "usuario nao autorizado a visualizar esta ocorrencia");
+        }
+
+        return OcorrenciaResponse.fromEntity(ocorrencia);
+    }
+
+    @Transactional(readOnly = true)
+    public OcorrenciaResponse buscarPorProtocolo(String protocolo) {
+        Ocorrencia ocorrencia = oRepository.findByProtocolo(protocolo)
+                .orElseThrow(() -> new EntityNotFoundException("ocorrencia nao encontrada"));
+
+        return OcorrenciaResponse.fromEntity(ocorrencia);
+    }
+
     public OcorrenciaFotoResponse adicionarFoto(Usuario usuario, Long ocorrenciaId, MultipartFile arquivo) throws IOException {
         if (usuario == null || usuario.getEstabelecimento() == null || usuario.getEstabelecimento().getId() == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "usuario nao autenticado ou sem estabelecimento");
@@ -98,26 +144,24 @@ public class OcorrenciaService {
 
         Path destino = Paths.get(ocorrenciaDir, nomeFoto);
 
-         try {
-             arquivo.transferTo(destino.toFile());
-         }catch (IOException e){
-             throw new RuntimeException("erro ao salvar arquivo", e);
-         }
+        try {
+            arquivo.transferTo(destino.toFile());
+        } catch (IOException e) {
+            throw new RuntimeException("erro ao salvar arquivo", e);
+        }
 
-         String urlFoto = "uploads/ocorrencias/" + nomeFoto;
+        String urlFoto = "uploads/ocorrencias/" + nomeFoto;
 
-         OcorrenciaFoto foto = OcorrenciaFoto.builder()
-                 .nomeArquivo(nomeArquivo)
-                 .urlFoto(urlFoto)
-                 .tamanhoBytes(arquivo.getSize())
-                 .contentType(arquivo.getContentType())
-                 .ocorrencia(ocorrencia)
-                 .build();
+        OcorrenciaFoto foto = OcorrenciaFoto.builder()
+                .nomeArquivo(nomeArquivo)
+                .urlFoto(urlFoto)
+                .tamanhoBytes(arquivo.getSize())
+                .contentType(arquivo.getContentType())
+                .ocorrencia(ocorrencia)
+                .build();
 
-         foto = ofRepository.save(foto);
+        foto = ofRepository.save(foto);
 
-         OcorrenciaFotoResponse response = OcorrenciaFotoResponse.fromEntity(foto);
-
-         return response;
-     }
+        return OcorrenciaFotoResponse.fromEntity(foto);
+    }
 }

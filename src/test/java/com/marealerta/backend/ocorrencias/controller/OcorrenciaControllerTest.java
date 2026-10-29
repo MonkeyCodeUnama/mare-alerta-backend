@@ -4,7 +4,6 @@ import com.marealerta.backend.ocorrencias.dto.OcorrenciaFotoResponse;
 import com.marealerta.backend.ocorrencias.dto.OcorrenciaRequest;
 import com.marealerta.backend.ocorrencias.dto.OcorrenciaResponse;
 import com.marealerta.backend.ocorrencias.service.OcorrenciaService;
-import com.marealerta.backend.usuario.model.Usuario;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,9 +16,12 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -70,6 +72,56 @@ class OcorrenciaControllerTest {
     }
 
     @Test
+    @DisplayName("GET /ocorrencias deve retornar 200 OK com lista de ocorrências")
+    void deveListarOcorrencias() throws Exception {
+        OcorrenciaResponse oc = OcorrenciaResponse.builder()
+                .id(1L)
+                .protocolo("OC-10-1")
+                .titulo("Alagamento Doca")
+                .build();
+
+        when(ocorrenciaService.listarPorUsuario(any(), any())).thenReturn(List.of(oc));
+
+        mockMvc.perform(get("/ocorrencias"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1L))
+                .andExpect(jsonPath("$[0].protocolo").value("OC-10-1"));
+    }
+
+    @Test
+    @DisplayName("GET /ocorrencias/{id} deve retornar 200 OK com dados da ocorrência")
+    void deveBuscarOcorrenciaPorId() throws Exception {
+        OcorrenciaResponse oc = OcorrenciaResponse.builder()
+                .id(1L)
+                .protocolo("OC-10-1")
+                .titulo("Alagamento Doca")
+                .build();
+
+        when(ocorrenciaService.buscarPorId(any(), eq(1L))).thenReturn(oc);
+
+        mockMvc.perform(get("/ocorrencias/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.protocolo").value("OC-10-1"));
+    }
+
+    @Test
+    @DisplayName("GET /ocorrencias/protocolo/{protocolo} deve retornar 200 OK com dados da ocorrência")
+    void deveBuscarOcorrenciaPorProtocolo() throws Exception {
+        OcorrenciaResponse oc = OcorrenciaResponse.builder()
+                .id(1L)
+                .protocolo("OC-10-1")
+                .titulo("Alagamento Doca")
+                .build();
+
+        when(ocorrenciaService.buscarPorProtocolo("OC-10-1")).thenReturn(oc);
+
+        mockMvc.perform(get("/ocorrencias/protocolo/OC-10-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.protocolo").value("OC-10-1"));
+    }
+
+    @Test
     @DisplayName("POST /ocorrencias/{id}/fotos deve retornar 201 Created ao anexar foto")
     void deveRegistrarFotoComSucesso() throws Exception {
         OcorrenciaFotoResponse fotoResponse = OcorrenciaFotoResponse.builder()
@@ -91,4 +143,3 @@ class OcorrenciaControllerTest {
                 .andExpect(jsonPath("$.urlFoto").value("uploads/ocorrencias/foto.jpg"));
     }
 }
-

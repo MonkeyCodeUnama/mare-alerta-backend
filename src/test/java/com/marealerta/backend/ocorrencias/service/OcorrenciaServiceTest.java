@@ -30,6 +30,7 @@ import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -165,6 +166,105 @@ class OcorrenciaServiceTest {
     }
 
     @Test
+    @DisplayName("Deve listar ocorrências do usuário ordenadas por data e hora")
+    void deveListarOcorrenciasDoUsuario() {
+        Ocorrencia oc = Ocorrencia.builder()
+                .id(1L)
+                .titulo("Ocorrencia 1")
+                .estabelecimento(estabelecimento)
+                .status(StatusOcorrencia.ENVIADA)
+                .protocolo("OC-10-1")
+                .dataOcorrencia(LocalDate.now())
+                .horaInicio(LocalTime.of(10, 0))
+                .build();
+
+        when(ocorrenciaRepository.findByEstabelecimentoIdOrderByDataOcorrenciaDescHoraInicioDesc(10L))
+                .thenReturn(List.of(oc));
+
+        List<OcorrenciaResponse> lista = ocorrenciaService.listarPorUsuario(usuario, null);
+
+        assertThat(lista).hasSize(1);
+        assertThat(lista.get(0).getProtocolo()).isEqualTo("OC-10-1");
+        verify(ocorrenciaRepository).findByEstabelecimentoIdOrderByDataOcorrenciaDescHoraInicioDesc(10L);
+    }
+
+    @Test
+    @DisplayName("Deve listar ocorrências do usuário filtradas por status")
+    void deveListarOcorrenciasDoUsuarioPorStatus() {
+        Ocorrencia oc = Ocorrencia.builder()
+                .id(2L)
+                .titulo("Ocorrencia Em Analise")
+                .estabelecimento(estabelecimento)
+                .status(StatusOcorrencia.EM_ANALISE)
+                .protocolo("OC-10-2")
+                .dataOcorrencia(LocalDate.now())
+                .horaInicio(LocalTime.of(12, 0))
+                .build();
+
+        when(ocorrenciaRepository.findByEstabelecimentoIdAndStatus(10L, StatusOcorrencia.EM_ANALISE))
+                .thenReturn(List.of(oc));
+
+        List<OcorrenciaResponse> lista = ocorrenciaService.listarPorUsuario(usuario, StatusOcorrencia.EM_ANALISE);
+
+        assertThat(lista).hasSize(1);
+        assertThat(lista.get(0).getStatus()).isEqualTo(StatusOcorrencia.EM_ANALISE);
+        verify(ocorrenciaRepository).findByEstabelecimentoIdAndStatus(10L, StatusOcorrencia.EM_ANALISE);
+    }
+
+    @Test
+    @DisplayName("Deve buscar ocorrência por ID com sucesso")
+    void deveBuscarOcorrenciaPorIdComSucesso() {
+        Ocorrencia oc = Ocorrencia.builder()
+                .id(50L)
+                .titulo("Ocorrencia 50")
+                .estabelecimento(estabelecimento)
+                .protocolo("OC-10-50")
+                .build();
+
+        when(ocorrenciaRepository.findById(50L)).thenReturn(Optional.of(oc));
+
+        OcorrenciaResponse response = ocorrenciaService.buscarPorId(usuario, 50L);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(50L);
+        assertThat(response.getProtocolo()).isEqualTo("OC-10-50");
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar busca por ID se pertencer a outro estabelecimento")
+    void deveRejeitarBuscarPorIdDeOutroEstabelecimento() {
+        Estabelecimento outroEstab = Estabelecimento.builder().id(999L).nome("Outro").build();
+        Ocorrencia ocOutro = Ocorrencia.builder()
+                .id(50L)
+                .estabelecimento(outroEstab)
+                .build();
+
+        when(ocorrenciaRepository.findById(50L)).thenReturn(Optional.of(ocOutro));
+
+        assertThatThrownBy(() -> ocorrenciaService.buscarPorId(usuario, 50L))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("usuario nao autorizado a visualizar esta ocorrencia");
+    }
+
+    @Test
+    @DisplayName("Deve buscar ocorrência por protocolo com sucesso")
+    void deveBuscarOcorrenciaPorProtocoloComSucesso() {
+        Ocorrencia oc = Ocorrencia.builder()
+                .id(70L)
+                .titulo("Ocorrencia 70")
+                .estabelecimento(estabelecimento)
+                .protocolo("OC-10-70")
+                .build();
+
+        when(ocorrenciaRepository.findByProtocolo("OC-10-70")).thenReturn(Optional.of(oc));
+
+        OcorrenciaResponse response = ocorrenciaService.buscarPorProtocolo("OC-10-70");
+
+        assertThat(response).isNotNull();
+        assertThat(response.getProtocolo()).isEqualTo("OC-10-70");
+    }
+
+    @Test
     @DisplayName("Deve adicionar foto na ocorrência com sucesso")
     void deveAdicionarFotoComSucesso() throws IOException {
         Ocorrencia ocorrencia = Ocorrencia.builder()
@@ -234,4 +334,3 @@ class OcorrenciaServiceTest {
         verifyNoInteractions(ocorrenciaRepository, ocorrenciaFotoRepository);
     }
 }
-
