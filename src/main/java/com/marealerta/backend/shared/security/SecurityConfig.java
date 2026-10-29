@@ -41,6 +41,7 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/telemetria/**").permitAll()
                         .requestMatchers("/risco/**").permitAll()
+                        .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/alertas/**").permitAll()
                         .anyRequest().authenticated()
                 )

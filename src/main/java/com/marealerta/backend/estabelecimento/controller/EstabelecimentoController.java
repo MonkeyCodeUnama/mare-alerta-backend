@@ -3,6 +3,7 @@ package com.marealerta.backend.estabelecimento.controller;
 import java.security.Principal;
 import java.util.List;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,7 +21,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/estabelecimento")
+@RequestMapping({"/estabelecimento", "/estabelecimentos"})
 @RequiredArgsConstructor
 @Tag(name = "Estabelecimento", description = "Endpoints de gerenciamento e perfil do estabelecimento comercial")
 public class EstabelecimentoController {
@@ -31,7 +32,7 @@ public class EstabelecimentoController {
     @GetMapping("/me")
     public ResponseEntity<EstabelecimentoResponse> buscarMeuEstabelecimento(Principal principal) {
         if (principal == null) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         return ResponseEntity.ok(estabelecimentoService.buscarPorEmailUsuario(principal.getName()));
     }

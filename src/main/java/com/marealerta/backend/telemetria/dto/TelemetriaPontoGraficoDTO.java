@@ -17,10 +17,18 @@ import lombok.Setter;
 public class TelemetriaPontoGraficoDTO {
 
     private String time;
+    private Integer hour;
     private LocalDateTime dataHora;
     private BigDecimal level;
     private BigDecimal rain;
     private BigDecimal temperature;
     private BigDecimal wind;
     private String tipoRegistro;
+
+    public Integer getHour() {
+        if (hour != null) {
+            return hour;
+        }
+        return dataHora != null ? dataHora.getHour() : null;
+    }
 }

@@ -31,4 +31,10 @@ public class TelemetriaDashboardResponse {
     private String unidadeChuva;
     private String unidadeTemperatura;
     private String unidadeVento;
+
+    public BigDecimal getCurrentLevel() { return nivelAtual; }
+    public BigDecimal getLevel() { return nivelAtual; }
+    public BigDecimal getRain() { return chuvaAtual; }
+    public BigDecimal getWind() { return ventoVelocidade; }
+    public String getRiskLevel() { return nivelRisco; }
 }

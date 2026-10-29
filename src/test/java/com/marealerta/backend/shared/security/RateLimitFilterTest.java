@@ -80,4 +80,14 @@ class RateLimitFilterTest {
         assertThat(rateLimitFilter.shouldNotFilter(swaggerReq)).isTrue();
         assertThat(rateLimitFilter.shouldNotFilter(openApiReq)).isTrue();
     }
+
+    @Test
+    @DisplayName("Deve ignorar filtro para preflight OPTIONS e uploads de imagens")
+    void deveIgnorarFiltroParaOptionsEUploads() {
+        MockHttpServletRequest optionsReq = new MockHttpServletRequest("OPTIONS", "/ocorrencias");
+        MockHttpServletRequest uploadsReq = new MockHttpServletRequest("GET", "/uploads/ocorrencias/foto123.jpg");
+
+        assertThat(rateLimitFilter.shouldNotFilter(optionsReq)).isTrue();
+        assertThat(rateLimitFilter.shouldNotFilter(uploadsReq)).isTrue();
+    }
 }

@@ -7,8 +7,10 @@ import com.marealerta.backend.auth.dto.RegisterRequest;
 import com.marealerta.backend.auth.dto.TokenResponse;
 import com.marealerta.backend.auth.service.AuthService;
 import com.marealerta.backend.estabelecimento.dto.EstabelecimentoRequest;
+import com.marealerta.backend.estabelecimento.dto.EstabelecimentoResponse;
 import com.marealerta.backend.estabelecimento.model.Bairro;
 import com.marealerta.backend.estabelecimento.model.TipoNegocio;
+import com.marealerta.backend.estabelecimento.service.EstabelecimentoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,8 +22,11 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.security.Principal;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -34,6 +39,9 @@ class AuthControllerTest {
 
     @Mock
     private AuthService authService;
+
+    @Mock
+    private EstabelecimentoService estabelecimentoService;
 
     @InjectMocks
     private AuthController authController;
@@ -122,5 +130,33 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value("new-jwt-token"))
                 .andExpect(jsonPath("$.refreshToken").value("new-refresh-token"));
+    }
+
+    @Test
+    @DisplayName("Deve retornar dados do estabelecimento via GET /auth/me quando autenticado")
+    void deveRetornarDadosUsuarioAutenticado() throws Exception {
+        EstabelecimentoResponse estabResponse = EstabelecimentoResponse.builder()
+                .id(1L)
+                .nome("Padaria Silva")
+                .documento("12345678000100")
+                .tipoNegocio(TipoNegocio.MERCADO)
+                .bairro(Bairro.MARCO)
+                .build();
+
+        Principal mockPrincipal = () -> "padaria@marealerta.com";
+        when(estabelecimentoService.buscarPorEmailUsuario("padaria@marealerta.com")).thenReturn(estabResponse);
+
+        mockMvc.perform(get("/auth/me").principal(mockPrincipal))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.nome").value("Padaria Silva"))
+                .andExpect(jsonPath("$.documento").value("12345678000100"));
+    }
+
+    @Test
+    @DisplayName("Deve retornar 401 Unauthorized via GET /auth/me quando principal for nulo")
+    void deveRetornar401EmMeSemPrincipal() throws Exception {
+        mockMvc.perform(get("/auth/me"))
+                .andExpect(status().isUnauthorized());
     }
 }

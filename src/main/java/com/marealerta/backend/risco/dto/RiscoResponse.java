@@ -25,5 +25,8 @@ public class RiscoResponse {
     private String descricaoCenario;
     private LocalDateTime horarioPicoPrevisto;
     private Boolean alertaEmitido;
-}
 
+    public Double getRainProbability() { return probabilidadeChuva; }
+    public String getScenarioDescription() { return descricaoCenario; }
+    public String getRiskLevel() { return nivelRisco != null ? nivelRisco.name() : null; }
+}

@@ -152,6 +152,7 @@ public class TelemetriaService {
         return leituras.stream()
                 .map(l -> TelemetriaPontoGraficoDTO.builder()
                         .time(l.getDataHora().format(formatter))
+                        .hour(l.getDataHora().getHour())
                         .dataHora(l.getDataHora())
                         .level(l.getNivelMare())
                         .rain(l.getPrecipitacao())

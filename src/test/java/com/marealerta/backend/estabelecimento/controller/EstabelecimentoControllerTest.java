@@ -86,9 +86,9 @@ class EstabelecimentoControllerTest {
     }
 
     @Test
-    void deveRetornarBadRequestQuandoPrincipalNuloEmMe() throws Exception {
+    void deveRetornarUnauthorizedQuandoPrincipalNuloEmMe() throws Exception {
         mockMvc.perform(get("/estabelecimento/me"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -104,7 +104,11 @@ class EstabelecimentoControllerTest {
                 .andExpect(jsonPath("$[0].nome").value("Estab 1"))
                 .andExpect(jsonPath("$[1].nome").value("Estab 2"));
 
-        verify(estabelecimentoService).listarTodos();
+        mockMvc.perform(get("/estabelecimentos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+
+        verify(estabelecimentoService, org.mockito.Mockito.times(2)).listarTodos();
     }
 
     @Test
