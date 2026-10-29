@@ -31,8 +31,8 @@ src/main/java/com/marealerta/backend/
 │   ├── repository/      # AlertaRepository, EnvioAlertaWhatsappRepository
 │   └── service/         # AlertaService
 ├── auth/                # Autenticação e Registro
-│   ├── controller/      # Endpoints públicos (/auth/registro, /auth/login)
-│   ├── dto/             # LoginRequest, RegisterRequest, TokenResponse
+│   ├── controller/      # Endpoints públicos (/auth/registro, /auth/login, /auth/refresh, /auth/me)
+│   ├── dto/             # LoginRequest, RegisterRequest, TokenResponse, RefreshTokenRequest
 │   └── service/         # AuthService, JwtService, UserDetailsServiceImpl
 ├── checklist/           # Checklist preventivo de mitigação de danos
 │   ├── controller/      # Endpoints (/checklists, /checklists/registrar, /checklists/listar)
@@ -41,20 +41,23 @@ src/main/java/com/marealerta/backend/
 │   ├── repository/      # ItemChecklistRepository
 │   └── service/         # ChecklistService
 ├── estabelecimento/     # Perfil comercial do comerciante e endereçamento
-│   ├── controller/      # Endpoints (/estabelecimento, /estabelecimento/me, /estabelecimento/{id})
+│   ├── controller/      # Endpoints (/estabelecimento, /estabelecimentos, /estabelecimento/me, /estabelecimento/{id})
 │   ├── dto/             # EstabelecimentoRequest, EstabelecimentoAtualizacaoRequest, EstabelecimentoResponse
 │   ├── model/           # Estabelecimento, EstabelecimentoHorario, TipoNegocio, Bairro, ConversorBairro
 │   ├── repository/      # EstabelecimentoRepository, EstabelecimentoHorarioRepository
 │   └── service/         # EstabelecimentoService (Onboarding em 2 etapas)
 ├── itens/               # Bens vulneráveis a alagamento vinculados ao estabelecimento
+│   ├── controller/      # Endpoints (/itemcritico, /itens-criticos)
+│   ├── dto/             # ItemCriticoRequest, ItemCriticoResponse
 │   ├── model/           # ItemCritico
-│   └── repository/      # ItensCriticosRepository
+│   ├── repository/      # ItensCriticosRepository
+│   └── service/         # ItemCriticoService
 ├── ocorrencias/         # Sinistros pós-alagamento e anexos
-│   ├── controller/      # Endpoints (/ocorrencias)
+│   ├── controller/      # Endpoints (/ocorrencias, /ocorrencias/{id}, /ocorrencias/protocolo/{p}, /ocorrencias/{id}/fotos)
 │   ├── dto/             # OcorrenciaRequest, OcorrenciaResponse, OcorrenciaFotoResponse
 │   ├── model/           # Ocorrencia, OcorrenciaFoto, StatusOcorrencia, NivelAlagamento
 │   ├── repository/      # OcorrenciaRepository, OcorrenciaFotoRepository
-│   └── service/         # OcorrenciaService (geração de protocolo estável)
+│   └── service/         # OcorrenciaService (geração de protocolo estável, listagem e busca)
 ├── risco/               # Inteligência e Previsão Climática/ML
 │   ├── controller/      # Endpoints (/risco/atual)
 │   ├── dto/             # PrevisaoMlRequest, PrevisaoMlResponse, RiscoResponse
@@ -62,8 +65,8 @@ src/main/java/com/marealerta/backend/
 │   ├── repository/      # PrevisaoChuvaMlRepository
 │   └── service/         # RiscoService, MlApiCliente
 ├── shared/              # Configurações globais transversais
-│   ├── config/          # RestClientConfig
-│   ├── security/        # SecurityConfig, JwtAuthFilter, CorsConfig
+│   ├── config/          # RestClientConfig, WebConfig (recursos estáticos /uploads/**)
+│   ├── security/        # SecurityConfig, JwtAuthFilter, CorsConfig, RateLimitFilter
 │   └── web/             # ApiError, ApiExceptionHandler, HomeController
 ├── telemetria/          # Dados meteorológicos e cotas de maré (Open-Meteo)
 │   ├── dto/             # LeituraTelemetriaRequest, LeituraTelemetriaResponse, TelemetriaDashboardResponse, TelemetriaPontoGraficoDTO
@@ -81,13 +84,14 @@ src/main/java/com/marealerta/backend/
 
 | Módulo | Camada de Dados (DB, Entidade, Repo, DTO) | Camada de Negócio / API (Service, Controller) | Situação Atual |
 | :--- | :---: | :---: | :--- |
-| **`auth`** | Concluído | Concluído | 100% funcional. Registro emite JWT e cria estabelecimento inicial. |
-| **`estabelecimento`** | Concluído | Concluído | 100% funcional. Suporta onboarding em 2 etapas com aliases React. |
-| **`telemetria`** | Concluído (V15, V17, V23) | Concluído | 100% funcional. `OpenMeteoClient` sincroniza 10 parâmetros atmosféricos de Belém, mapeia com tolerância a campos futuros (`@JsonIgnoreProperties`) e expõe endpoints `/telemetria/dashboard`, `/telemetria/grafico`, `/telemetria/sincronizar` e `/telemetria/historico`. |
-| **`ocorrencias`** | Concluído (V5, V13, V14) | Concluído | 100% funcional. `OcorrenciaService` gera protocolo `OC-{estab}-{quant}`, persiste sinistros e gerencia upload de fotos em disco. |
-| **`checklist`** | Concluído (V12) | Concluído | 100% funcional. `ChecklistService` e `ChecklistController` com suporte a `/checklists`, `/checklists/registrar` e `/checklists/listar`, criação, atualização e listagem de itens preventivos por estabelecimento com prioridades (`ALTA`, `MEDIA`, `BAIXA`), e 11 testes automatizados. |
+| **`auth`** | Concluído | Concluído | 100% funcional. Registro emite JWT, login valida comércios ativos, refresh token renova sessão e `GET /auth/me` retorna dados do usuário autenticado. |
+| **`estabelecimento`** | Concluído | Concluído | 100% funcional. Suporta onboarding em 2 etapas com aliases React e rotas `/estabelecimento` e `/estabelecimentos`. |
+| **`telemetria`** | Concluído (V15, V17, V23) | Concluído | 100% funcional. `OpenMeteoClient` sincroniza cotas reais da Open-Meteo Marine (`sea_level_height_msl`) e 10 parâmetros atmosféricos de Belém, mapeia com tolerância a campos futuros (`@JsonIgnoreProperties`) e expõe endpoints `/telemetria/dashboard`, `/telemetria/grafico`, `/telemetria/sincronizar` e `/telemetria/historico`. |
+| **`ocorrencias`** | Concluído (V5, V13, V14) | Concluído | 100% funcional. `OcorrenciaService` gera protocolo estável `OC-{estab}-{quant}`, persiste sinistros, disponibiliza listagem (`GET /ocorrencias`), busca por ID (`GET /ocorrencias/{id}`), busca por protocolo (`GET /ocorrencias/protocolo/{p}`) e gerencia upload e disponibilização estática de fotos (`/uploads/ocorrencias/**`). |
+| **`itens`** | Concluído (V7) | Concluído | 100% funcional. `ItemCriticoService` e `ItemCriticoController` com suporte a rotas `/itemcritico` e `/itens-criticos`, cadastro com validação, listagem vazia resiliente (`200 OK`) e aliases JSON para integração SPA. |
+| **`checklist`** | Concluído (V12) | Concluído | 100% funcional. `ChecklistService` e `ChecklistController` com suporte a `/checklists`, `/checklists/registrar` e `/checklists/listar`, criação, atualização e listagem de itens preventivos por estabelecimento com prioridades (`ALTA`, `MEDIA`, `BAIXA`), e testes automatizados dedicados. |
 | **`alerta`** | Concluído (V4, V20) | Concluído | 100% funcional. `AlertaService`, `AlertaController` e `EvolutionApiClient` conectados à Evolution API v2 para emissão individual e broadcast por bairro. Sanitização e formatação E.164 (`55919XXXXXXXX`), registro e rastreio de auditoria em `envios_alerta_whatsapp` com enums de status e controle de tentativas. |
-| **`risco` (ML)** | Concluído (V19, Entidade, Repo, DTOs) | Concluído | 100% funcional. Integrado ao microserviço FastAPI (`mare-alerta-ia`), com `feature_time` truncado em UTC, consumo de parâmetros atmosféricos reais da telemetria, tratamento de `window_end`, e fallback gracioso (`DEGRADADO`) em caso de indisponibilidade da IA. |
+| **`risco` (ML)** | Concluído (V19, Entidade, Repo, DTOs) | Concluído | 100% funcional. Integrado ao microserviço FastAPI (`weather-model`), consumindo 20 variáveis atmosféricas reais em UTC via Open-Meteo GFS Global, tratamento de `window_end` e fallback gracioso (`DEGRADADO`) em caso de indisponibilidade da IA. |
 
 ---
 
@@ -241,26 +245,29 @@ Para proteção contra força bruta em credenciais, scraping e sobrecarga da inf
   - `security.rate-limit.refill-tokens`: 60 tokens
   - `security.rate-limit.refill-duration-seconds`: 60 segundos
 - Ao exceder o balde, responde imediatamente com `HTTP 429 Too Many Requests`, cabeçalho `Retry-After: {segundos}` e payload JSON padronizado.
-- Rotas do Swagger UI e OpenAPI são isentas do filtro para permitir documentação fluida.
+- Rotas do Swagger UI, OpenAPI, preflight `OPTIONS` e arquivos estáticos em `/uploads/**` são isentos do filtro para garantir performance fluida.
 
 ### D. Hardening de CORS
 - Configurado via `CorsConfig` consumindo `app.cors.allowed-origins` (`CORS_ALLOWED_ORIGINS`).
 - Origens padrão autorizadas: `http://localhost:3000`, `http://localhost:5173`, `http://127.0.0.1:5173`.
-- Suporte a credenciais (`allowCredentials: true`), métodos `GET, POST, PUT, DELETE, OPTIONS, PATCH` e tempo de cache preflight de 3600 segundos.
+- Suporte a credenciais (`allowCredentials: true`), todos os cabeçalhos permitidos (`*`), cabeçalhos expostos (`Authorization`, `Retry-After`, `Content-Disposition`), métodos `GET, POST, PUT, DELETE, OPTIONS, PATCH` e tempo de cache preflight de 3600 segundos.
 
 ### E. Matriz de Autorização de Rotas (SecurityConfig)
 | Rota / Prefixo | Método | Acesso | Descrição |
 | :--- | :---: | :---: | :--- |
 | `/`, `/swagger-ui/**`, `/v3/api-docs/**` | GET | Público | Documentação interativa OpenAPI/Swagger |
 | `/auth/registro`, `/auth/login`, `/auth/refresh` | POST | Público | Registro, login e renovação de token |
+| `/auth/me` | GET | Autenticado | Dados do estabelecimento do usuário autenticado |
 | `/telemetria/**` | Qualquer | Público | Dados em tempo real das marés, gráficos, histórico e sincronização manual |
 | `/risco/**` | GET | Público | Consulta de previsão de alagamento e IA |
 | `/alertas` e `/alertas/**` | GET | Público | Consulta e histórico público de alertas |
+| `/uploads/**` | GET | Público | Imagens estáticas de fotos de sinistros pós-alagamento |
 | `OPTIONS /**` | OPTIONS | Público | Requisições de preflight do CORS |
 | `/alertas` e `/alertas/bairro` | POST | Autenticado | Emissão e broadcast de novos alertas |
 | `/checklists/**` | Qualquer | Autenticado | Planejamento preventivo do estabelecimento |
-| `/ocorrencias/**` | Qualquer | Autenticado | Registro de sinistros e anexo de fotos |
-| `/estabelecimento/**` | Qualquer | Autenticado | Perfil comercial, horários e itens críticos |
+| `/itemcritico/**`, `/itens-criticos/**` | Qualquer | Autenticado | Gestão de bens vulneráveis à cota de maré |
+| `/ocorrencias/**` | Qualquer | Autenticado | Registro, consulta e fotos de sinistros |
+| `/estabelecimento/**`, `/estabelecimentos/**` | Qualquer | Autenticado | Perfil comercial, horários e endereço |
 
 ---
 
@@ -310,6 +317,7 @@ docker compose up -d postgres evolution_api weather-model
 
 | Data | Autor | Resumo das Mudanças | Impacto |
 | :--- | :--- | :--- | :--- |
+| **29/10/2026** | AKIRA-NZR | Sincronização e robustecimento para o Frontend: correção do módulo `itens` (`ItemCriticoService`, `ItemCriticoController`, `ItemCriticoRequest`, `ItemCriticoResponse`) com retorno resiliente de lista vazia (`200 OK`), aliases JSON e suporte a rotas plurais (`/itens-criticos`); disponibilização estática de imagens de sinistro via `WebConfig` (`/uploads/ocorrencias/**`) liberada no `SecurityConfig`; implementação de endpoints de consulta em `OcorrenciaController` (`GET /ocorrencias`, `GET /ocorrencias/{id}`, `GET /ocorrencias/protocolo/{p}`); adição de `GET /auth/me` e alias `/estabelecimentos`; aprimoramento de CORS e bypass de preflight `OPTIONS` no `RateLimitFilter`; e expansão da suíte para **131 testes automatizados** com 100% de sucesso e zero comentários no código. | Prontidão total para integração entre Frontend (SPA) e Backend, com todas as rotas operacionais, histórico de ocorrências acessível e imagens servidas com segurança. |
 | **12/10/2026** | AKIRA-NZR | Orquestração Docker autocontida em `docker/weather-model` e eliminação total de dados simulados: incorporação dos arquivos de runtime do `weather-model` diretamente no repositório; adição de `weather-model` com `condition: service_healthy` no `depends_on` do serviço `app` no `docker-compose.yml`; integração da **Open-Meteo Marine API** (`sea_level_height_msl`) para cota real de maré, cálculo dinâmico de tendência e horário de preamar; ingestão em tempo real de todas as **20 variáveis atmosféricas do modelo GFS Global** para o `RiscoService`; remoção de heurísticas e fallbacks artificiais; limpeza do módulo `itens` (`ItemCriticoController`, `ItemCriticoService`); e expansão da suíte para **115 testes automatizados** com 100% de sucesso. | Portabilidade imediata no clone sem repositórios externos, dados marinhos e meteorológicos 100% reais em produção e cobertura abrangente de testes automatizados. |
 | **12/10/2026** | AKIRA-NZR | Conclusão da Etapa 3: integração do microserviço `mare-alerta-ia` (`weather-model`) via Docker Compose com `python:3.13-slim`, mapeamento seguro de porta `127.0.0.1:8000:8000`, montagem somente leitura de artefatos (`model_bundle.joblib`), healthcheck HTTP nativo em `/health` e comunicação direta entre contêineres (`http://weather-model:8000/v1/predict`). | Inferência de Machine Learning operando em contêiner dedicado e desacoplado, com observabilidade de integridade e tolerância a falhas. |
 | **12/10/2026** | AKIRA-NZR | Conclusão da Etapa 2 da telemetria: expansão do `OpenMeteoClient` para 10 variáveis atmosféricas superficiais em tempo real com anotação `@JsonIgnoreProperties(ignoreUnknown = true)`, exposição de endpoints `/telemetria/grafico`, `/telemetria/sincronizar` e `/telemetria/historico`, testes unitários atualizados em `OpenMeteoClientTest`, `TelemetriaControllerTest` e `TelemetriaServiceTest`, e smoke test real validado contra a API Open-Meteo para Belém (-1.4558, -48.5044). | Alimentação fidedigna em tempo real do dashboard e do modelo de IA de chuva, cobertura total de endpoints e tolerância a novos atributos da API meteorológica. |
@@ -323,5 +331,3 @@ docker compose up -d postgres evolution_api weather-model
 | **05/10/2026** | AKIRA-NZR | Criação do `docs/GUIA_BACKEND.md`. Implementação inicial dos DTOs de ML padronizados com `Instant`/`TIMESTAMPTZ`. Sincronização com `origin/main` (CI/GHCR). | Documentação viva centralizada e alinhamento de timezone do backend. |
 | **02/10/2026** | Andr3Dav1d | Workflow CI para publicação de imagens multi-arquitetura no GHCR (`.github/workflows/ci.yml`). | Pipeline de entrega contínua automatizada. |
 | **01/10/2026** | AKIRA-NZR | Migrações V17 e V18: adição das colunas climáticas Open-Meteo na telemetria e índice único parcial para soft delete de e-mail. DTOs de telemetria e gráficos. | Suporte a dados meteorológicos e correção do histórico V10. |
-
-

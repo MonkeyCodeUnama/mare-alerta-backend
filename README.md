@@ -6,7 +6,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-ML%20Runtime-teal.svg)](https://fastapi.tiangolo.com/)
 [![Flyway](https://img.shields.io/badge/Flyway-Migrations%20V1--V24-red.svg)](https://flywaydb.org/)
 [![Docker](https://img.shields.io/badge/Docker%20Compose-Autocontido-2496ED.svg)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/Tests-115%20Passing-success.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-131%20Passing-success.svg)]()
 
 Backend oficial da plataforma **Maré Alerta**, desenvolvido para mitigar danos causados por alagamentos fluviais, ressacas e marés astronômicas na bacia hidrográfica de Belém/PA. O ecossistema combina **telemetria marinha e atmosférica 100% real**, **inferência de Machine Learning** e **notificações automatizadas via WhatsApp** para proteger comércios e cidadãos em áreas de cota crítica.
 
@@ -111,16 +111,17 @@ A documentação interativa com Swagger UI está acessível em `http://localhost
 - `POST /auth/registro`: Etapa 1 do onboarding comercial (criação de usuário e perfil inicial). Aceita chaves em português ou inglês.
 - `POST /auth/login`: Autenticação via e-mail e senha com retorno de access token JWT (Bearer).
 - `POST /auth/refresh`: Renovação segura de access token via refresh token.
+- `GET /auth/me`: Retorna os dados do estabelecimento vinculado ao usuário autenticado.
 
-### 2. Estabelecimentos Comerciais (`/estabelecimento`)
-- `GET /estabelecimento`: Listagem de estabelecimentos comerciais ativos (Requer autenticação).
+### 2. Estabelecimentos Comerciais (`/estabelecimento`, `/estabelecimentos`)
+- `GET /estabelecimento` ou `GET /estabelecimentos`: Listagem de estabelecimentos comerciais ativos (Requer autenticação).
 - `GET /estabelecimento/me`: Consulta do perfil comercial associado ao usuário logado.
 - `GET /estabelecimento/{id}`: Busca detalhada de estabelecimento por identificador.
 - `PUT /estabelecimento/{id}`: Etapa 2 do onboarding comercial (atualização de endereço estruturado, dias/horários de funcionamento e itens críticos).
 
-### 3. Itens Críticos em Risco (`/itemcritico`)
-- `POST /itemcritico/registrar`: Cadastro de bens vulneráveis à cota de alagamento (freezers, maquinário, estoques no chão).
-- `GET /itemcritico/listar?estabelecimentoId={id}`: Listagem de itens críticos de um comércio.
+### 3. Itens Críticos em Risco (`/itemcritico`, `/itens-criticos`)
+- `POST /itemcritico` ou `POST /itemcritico/registrar`: Cadastro de bens vulneráveis à cota de alagamento (freezers, maquinário, estoques no chão).
+- `GET /itemcritico` ou `GET /itemcritico/listar?estabelecimentoId={id}`: Listagem resiliente de itens críticos (retorna lista vazia caso não haja itens cadastrados).
 - `GET /itemcritico/{id}`: Consulta de item crítico por ID.
 - `PUT /itemcritico/{id}`: Atualização de nome e descrição de proteção do item.
 - `DELETE /itemcritico/{id}`: Exclusão de item crítico.
@@ -134,7 +135,7 @@ A documentação interativa com Swagger UI está acessível em `http://localhost
 
 ### 5. Telemetria Hidrometeorológica (`/telemetria`)
 - `GET /telemetria/dashboard`: Dados ambientais consolidados da estação de Belém (cota da maré, tendência, chuva, vento, preamar previsto e nível de risco).
-- `GET /telemetria/grafico`: Série temporal de leituras para renderização no componente visual `TideChart`.
+- `GET /telemetria/grafico`: Série temporal de leituras para renderização no componente visual `TideChart` com horários formatados.
 - `GET /telemetria/historico?estacaoCodigo={codigo}`: Últimas 10 leituras observadas.
 - `POST /telemetria/sincronizar`: Disparo manual da sincronização em tempo real contra as APIs Open-Meteo e Marine.
 - `POST /telemetria/manual`: Inserção manual de leitura técnica por operadores.
@@ -148,7 +149,11 @@ A documentação interativa com Swagger UI está acessível em `http://localhost
 
 ### 8. Ocorrências e Sinistros (`/ocorrencias`)
 - `POST /ocorrencias`: Registro de sinistro pós-alagamento com protocolo sequencial único e estimativa de prejuízo.
+- `GET /ocorrencias`: Listagem das ocorrências registradas pelo estabelecimento autenticado (suporta filtro opcional por `status`).
+- `GET /ocorrencias/{id}`: Detalhe de uma ocorrência específica com validação de titularidade do comércio.
+- `GET /ocorrencias/protocolo/{protocolo}`: Consulta rápida por código do protocolo oficial (ex: `OC-1-1`).
 - `POST /ocorrencias/{id}/fotos`: Upload de comprovantes e fotos da ocorrência em formato multipart.
+- `GET /uploads/ocorrencias/{nomeArquivo}`: Download e visualização pública de fotos e comprovantes anexados.
 
 ---
 
@@ -241,19 +246,19 @@ Ideal para desenvolvimento ativo no código Java com reinicialização rápida v
 
 ## 🧪 Testes Automatizados
 
-O projeto possui uma suíte abrangente de **115 testes automatizados** cobrindo controladores REST, regras de negócio de serviços, validações de segurança e clientes HTTP externos:
+O projeto possui uma suíte abrangente de **131 testes automatizados** cobrindo controladores REST, regras de negócio de serviços, validações de segurança e clientes HTTP externos:
 
 ```powershell
 ./gradlew test
 ```
 
 ### Cobertura da Suíte:
-- **Autenticação & Segurança:** Ciclo de login, registro, emissão/renovação de JWT e Rate Limiting por IP (`RateLimitFilterTest`, `AuthServiceTest`, `AuthControllerTest`, `JwtServiceTest`).
+- **Autenticação & Segurança:** Ciclo de login, registro, consulta de perfil (`/auth/me`), emissão/renovação de JWT e Rate Limiting por IP (`RateLimitFilterTest`, `AuthServiceTest`, `AuthControllerTest`, `JwtServiceTest`).
 - **Telemetria:** Ingestão de dados Open-Meteo, cálculo de tendências, pico de preamar e pontos para o gráfico (`TelemetriaServiceTest`, `TelemetriaControllerTest`, `OpenMeteoClientTest`).
 - **Predição & Risco:** Resolução das 20 features GFS, integração com `weather-model`, matriz de risco e auditoria em banco (`RiscoServiceTest`, `RiscoControllerTest`, `MlApiClienteTest`).
-- **Itens Críticos & Checklists:** CRUD de bens em risco e tarefas preventivas (`ItemCriticoServiceTest`, `ItemCriticoControllerTest`, `ChecklistServiceTest`, `ChecklistControllerTest`).
+- **Itens Críticos & Checklists:** CRUD de bens em risco, tratamento de listas vazias e tarefas preventivas (`ItemCriticoServiceTest`, `ItemCriticoControllerTest`, `ChecklistServiceTest`, `ChecklistControllerTest`).
 - **Alertas & WhatsApp:** Envio de alertas, validação de números E.164 e persistência de histórico (`AlertaServiceTest`, `AlertaControllerTest`, `EvolutionApiClientTest`).
-- **Ocorrências:** Registro de sinistros e upload de arquivos (`OcorrenciaServiceTest`, `OcorrenciaControllerTest`).
+- **Ocorrências:** Registro de sinistros, listagens, busca por protocolo e upload de arquivos (`OcorrenciaServiceTest`, `OcorrenciaControllerTest`).
 - **Integração End-to-End:** Validação com Flyway e PostgreSQL (`BackendApplicationTests`).
 
 ---
@@ -301,7 +306,7 @@ mare-alerta-backend/
 │   │       ├── db/migration/          # Migrações Flyway (V1 a V24)
 │   │       ├── application.yaml       # Configuração base
 │   │       └── application-prod.yaml  # Configuração de produção
-│   └── test/                          # 115 testes unitários e de integração
+│   └── test/                          # 131 testes unitários e de integração
 ├── docker-compose.yml                 # Orquestração completa dos 4 contêineres
 ├── Dockerfile                         # Build multi-stage da aplicação Spring Boot
 ├── build.gradle.kts                   # Configuração de build Gradle Kotlin DSL
