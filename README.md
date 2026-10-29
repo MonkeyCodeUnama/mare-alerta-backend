@@ -1,231 +1,177 @@
-# Maré Alerta — Backend & Plataforma de Inteligência Preditiva
+<div align="center">
 
-[![Java](https://img.shields.io/badge/Java-21%20LTS-orange.svg)](https://www.oracle.com/java/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.1-brightgreen.svg)](https://spring.io/projects/spring-boot)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%20Alpine-blue.svg)](https://www.postgresql.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-ML%20Runtime-teal.svg)](https://fastapi.tiangolo.com/)
-[![Flyway](https://img.shields.io/badge/Flyway-Migrations%20V1--V24-red.svg)](https://flywaydb.org/)
-[![Docker](https://img.shields.io/badge/Docker%20Compose-Autocontido-2496ED.svg)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/Tests-131%20Passing-success.svg)]()
+# 🌊 Maré Alerta — Backend & Inteligência Preditiva
 
-Backend oficial da plataforma **Maré Alerta**, desenvolvido para mitigar danos causados por alagamentos fluviais, ressacas e marés astronômicas na bacia hidrográfica de Belém/PA. O ecossistema combina **telemetria marinha e atmosférica 100% real**, **inferência de Machine Learning** e **notificações automatizadas via WhatsApp** para proteger comércios e cidadãos em áreas de cota crítica.
+### Sistema Integrado de Monitoramento Hidrológico, Inferência de Risco por IA e Alertas Preventivos para a Bacia Hidrográfica de Belém/PA
 
----
+[![Java](https://img.shields.io/badge/Java-21%20LTS-orange.svg?logo=openjdk&logoColor=white)](https://www.oracle.com/java/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.1-brightgreen.svg?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%20Alpine-blue.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-ML%20Runtime-teal.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Flyway](https://img.shields.io/badge/Flyway-Migrations%20V1--V24-red.svg?logo=flyway&logoColor=white)](https://flywaydb.org/)
+[![Docker](https://img.shields.io/badge/Docker%20Compose-Autocontido-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Tests](https://img.shields.io/badge/Tests-131%20Passing%20(100%25)-success.svg?logo=junit5&logoColor=white)]()
 
-## 🌊 Visão Geral do Projeto
-
-A cidade de Belém/PA convive com dinâmicas hidrológicas complexas: marés de sizígia que elevam o Rio Guamá e a Baía do Guajará a cotas superiores a 3,0 metros, frequentemente coincidentes com chuvas convectivas equatoriais de alta intensidade. Quando esses dois fenômenos coincidem, canais transbordam e vias comerciais críticas (como Ver-o-Peso, Doca de Souza Franco, Tamandaré e Estrada Nova) sofrem alagamentos severos.
-
-O **Maré Alerta** atua como uma esteira preditiva e operacional completa:
-1. **Ingestão em Tempo Real:** Captura dados marinhos e meteorológicos ao vivo de APIs especializadas (**Open-Meteo Marine & Forecast GFS**), sem valores matemáticos simulados.
-2. **Predição por Inteligência Artificial:** Microserviço dedicado (`weather-model`) rodando um modelo SGD Classifier calibrado (`rain-hourly-v1`), processando 20 variáveis atmosféricas para prever chuva com horizonte de 1 hora.
-3. **Cálculo de Risco Combinado:** Cruza a cota da maré (em metros) com a probabilidade de precipitação calculada pela IA, classificando o cenário em `BAIXO`, `MEDIO` ou `ALTO`.
-4. **Alerta Preventivo via WhatsApp:** Notifica comerciantes cadastrados por bairro através da Evolution API v2 com antecedência ao pico da maré (*preamar*).
-5. **Ações de Mitigação e Checklist:** Oferece checklists preventivos para elevação de itens críticos (freezers, maquinário, estoques) e registro oficial de sinistros pós-evento com fotos.
+</div>
 
 ---
 
-## 🏗️ Arquitetura dos Serviços (Docker Autocontido)
+## 📌 1. Sobre o Projeto e seu Impacto Social
 
-O ambiente é 100% orquestrado via `docker-compose.yml`, com build autocontido. O runtime do modelo preditivo de IA foi incorporado no diretório `docker/weather-model/`, permitindo que qualquer membro da equipe execute o projeto imediatamente após o `git clone`, sem precisar clonar repositórios externos.
+### O Desafio Hidrológico em Belém do Pará
+A Região Metropolitana de Belém convive diariamente com uma das dinâmicas hidrológicas mais singulares do mundo: a confluência do **Rio Guamá** e da **Baía do Guajará** com o regime estuarino amazônico. Durante as **marés de sizígia** (alinhamento Sol-Terra-Lua), a cota das águas ultrapassa facilmente a marca crítica de **3,0 a 3,8 metros**, represando as saídas naturais dos canais urbanos. 
 
-```mermaid
-flowchart TD
-    subgraph Fontes Externas
-        OM_Marine["Open-Meteo Marine API\n(sea_level_height_msl)"]
-        OM_GFS["Open-Meteo GFS Global\n(20 features horárias)"]
-    end
+Quando essa preamar coincide com as **chuvas convectivas equatoriais torrenciais** — comuns na Amazônia no período da tarde —, o sistema de drenagem entra em colapso. Bacias comerciais históricas e vias vitais de tráfego (como **Ver-o-Peso, Doca de Souza Franco, Reduto, Campina, Cidade Velha, Tamandaré e Estrada Nova**) sofrem alagamentos abruptos em questão de minutos.
 
-    subgraph Docker Compose Network: marealerta
-        PG[("PostgreSQL 16\n(marealerta_dev)")]
-        IA["weather-model (FastAPI :8000)\nrain-hourly-v1 SGD\nhealthcheck: /health"]
-        EVO["Evolution API v2 (:8081)\nGateway WhatsApp Baileys"]
-        APP["Spring Boot App (:8080)\nTelemetria | Risco | Alertas\ndepends_on: postgres + weather-model"]
-    end
-
-    subgraph Clientes
-        FRONT["Frontend React / Mobile"]
-        DEFESA["Defesa Civil / Gestores"]
-        COMMERCE["Comerciantes (WhatsApp)"]
-    end
-
-    OM_Marine -->|Cota da Maré| APP
-    OM_GFS -->|20 Variáveis Atmosféricas| APP
-    APP -->|Persistência Flyway V1-V24| PG
-    APP -->|Invocação REST /v1/predict| IA
-    APP -->|Disparo de Mensagens| EVO
-    EVO -->|Alertas Preventivos| COMMERCE
-    FRONT -->|Consumo REST / Swagger| APP
-    DEFESA -->|Emissão de Alertas| APP
+```
+       [ Maré Astronômica de Sizígia ]       +       [ Chuva Convectiva Equatorial ]
+          (Cota Guajará > 3.0m)                          (Precipitação Intensa)
+                                      \             /
+                                       \           /
+                                  [ TRANSBORDAMENTO ]
+                           Bloqueio de canais e refluxo urbano
+                                        |
+                 Prejuízos a Comércios | Perda de Estoque | Risco Humano
 ```
 
-### Contêineres Orquestrados:
-- **`marealerta_pg` (PostgreSQL 16 Alpine):** Banco de dados relacional (3FN) com 24 migrações Flyway e schema isolado `evolution` para o WhatsApp.
-- **`marealerta_ia` (FastAPI / Python 3.13):** Microserviço autocontido em `docker/weather-model/`, carregando o bundle `model_bundle.joblib` com montagem *read-only* e healthcheck ativo em `/health`.
-- **`marealerta_whatsapp` (Evolution API v2):** Gateway multi-instâncias conectado ao WhatsApp via WebSockets.
-- **`marealerta_app` (Spring Boot 4 / Java 21):** Aplicação principal, configurada com inicialização ordenada (`depends_on: { postgres: healthy, weather-model: healthy }`).
+### O Valor Social e Econômico do Maré Alerta
+O impacto desses alagamentos recai de forma desproporcional sobre **pequenos e médios comerciantes locais** (padarias, mercearias, peixarias, açougues, farmácias e feirantes), além de moradores e transeuntes:
+- **Perdas Financeiras Devastadoras:** Perda de motores de refrigeração, freezers queimados, estoques no nível do solo destruídos pela água fluvial e dias inteiros com as portas fechadas.
+- **Insegurança e Falta de Previsibilidade:** As tábuas de maré convencionais não cruzam dados astronômicos com previsão de chuva horária, deixando o comerciante sem tempo hábil de reação.
+- **Risco à Saúde Pública:** A água de refluxo dos canais carrega contaminação, expondo trabalhadores e clientes a doenças de veiculação hídrica.
+
+### A Missão da Plataforma
+O **Maré Alerta** preenche essa lacuna através de tecnologia pública e aberta:
+1. **Telemetria 100% Real:** Coleta contínua da cota de maré (Open-Meteo Marine) e de 20 variáveis atmosféricas ao vivo, sem valores fictícios ou simulados.
+2. **Inteligência Artificial Preditiva:** Microserviço dedicado que processa o modelo `rain-hourly-v1` para prever chuva com antecedência horária precisa.
+3. **Alertas Diretos via WhatsApp:** Envio automatizado e gratuito de mensagens para os comerciantes da área sob risco, com tempo hábil para elevação de itens.
+4. **Prevenção Ativa com Checklists:** Ferramentas digitais para que o comerciante saiba exatamente o que fazer antes da água subir (levantar freezers, desligar disjuntores, salvar estoque).
+5. **Auditoria e Apoio à Defesa Civil:** Registro oficial de sinistros com fotos e relatórios estruturados para fundamentar planos de contingência pública.
 
 ---
 
-## 🌤️ Integrações Reais: Zero Mocks e Zero Simulações
+## 🛠️ 2. Stack Tecnológica
 
-Todos os dados artificiais (senóides matemáticas, probabilidades estáticas e fallbacks fictícios) foram eliminados da produção:
+O backend do **Maré Alerta** foi construído seguindo rigorosos padrões de engenharia de software corporativa, arquitetura em camadas (Controller-Service-Repository), persistência estrita na 3ª Forma Normal e desacoplamento de serviços via microsserviços e contêineres:
 
-| Recurso | Fonte Anterior | Fonte Atual Oficial | Descrição |
+| Camada | Tecnologia | Versão | Função / Responsabilidade |
 | :--- | :--- | :--- | :--- |
-| **Nível da Maré** | `2.0 + 1.2 * Math.sin(...)` | **Open-Meteo Marine API** | Cota real observada e horária (`sea_level_height_msl`) para a grade marinha de Belém. |
-| **Tendência da Maré** | `"SUBINDO"` chumbado | **Diferencial de Previsão** | Compara a cota atual com a próxima hora de previsão (`SUBINDO`, `DESCENDO` ou `ESTAVEL`). |
-| **Preamar (Horário do Pico)** | `.plusHours(2)` chumbado | **Janela Futura de 12 Horas** | Localiza dinamicamente o timestamp de maior cota prevista nas próximas 12h. |
-| **Variáveis Atmosféricas da IA** | 15 valores fixos no código | **Open-Meteo GFS Global** | Consulta ao vivo de todas as **20 variáveis horárias** UTC exigidas pelo modelo de ML. |
-| **Predição de Chuva** | Probabilidades falsas (0.85/0.50) | **weather-model (FastAPI)** | Inferência real via SGD Classifier, calculando probabilidade e precipitação esperada. |
-
-### As 20 Variáveis Atmosféricas Consumidas em Tempo Real:
-1. `temperature_2m` (°C)
-2. `relative_humidity_2m` (%)
-3. `dew_point_2m` (°C)
-4. `pressure_msl` (hPa)
-5. `surface_pressure` (hPa)
-6. `cloud_cover` (%)
-7. `cloud_cover_low` (%)
-8. `cloud_cover_mid` (%)
-9. `cloud_cover_high` (%)
-10. `wind_speed_10m` (km/h)
-11. `wind_direction_10m` (°)
-12. `wind_gusts_10m` (km/h)
-13. `cape` (J/kg)
-14. `relative_humidity_850hPa` (%)
-15. `relative_humidity_700hPa` (%)
-16. `relative_humidity_500hPa` (%)
-17. `temperature_850hPa` (°C)
-18. `temperature_700hPa` (°C)
-19. `geopotential_height_500hPa` (m)
-20. `precipitation` (mm)
+| **Backend Principal** | **Java** | **21 (LTS)** | Linguagem base de alto desempenho e tipagem estrita |
+| **Framework Web** | **Spring Boot** | **4.1.1** | Núcleo do backend, injeção de dependências e APIs RESTful |
+| **Gerenciador de Build** | **Gradle** | **9.7.1** | Build automatizado com Kotlin DSL (`build.gradle.kts`) |
+| **Banco de Dados** | **PostgreSQL** | **16 Alpine** | Persistência relacional em 3FN com constraints e integridade estrita |
+| **Versionamento de Banco**| **Flyway** | **Migrations V1 a V24** | Evolução controlada e idempotente do schema de banco |
+| **Inteligência Artificial** | **FastAPI / Python** | **3.13-slim** | Microserviço de ML desacoplado (`weather-model`) rodando o modelo SGD |
+| **Bibliotecas de ML** | **Scikit-learn & Joblib** | Latest | Pipeline de pré-processamento e inferência do modelo `rain-hourly-v1` |
+| **Gateway WhatsApp** | **Evolution API v2** | **v2.2.3** | Gateway WhatsApp baseado em Baileys/WebSockets e API RESTful |
+| **Telemetria Marinha** | **Open-Meteo Marine** | API Pública | Cota horária real do nível do mar (`sea_level_height_msl`) em Belém |
+| **Previsão Climática** | **Open-Meteo GFS Global** | API Pública | 20 variáveis atmosféricas superficiais e de altitude em tempo real |
+| **Segurança & Tokens** | **Spring Security + JWT** | **JJWT 0.12.6** | Autenticação stateless, Access Token e Refresh Token seguro |
+| **Proteção de Tráfego** | **Bucket4j + Caffeine** | **8.10.1 / 3.1.8** | Rate Limiting em memória por IP (Token Bucket) contra força bruta |
+| **Documentação da API** | **Springdoc OpenAPI 3** | **3.1.1** | Interface interativa Swagger UI e especificação OpenAPI JSON |
+| **Orquestração** | **Docker & Compose** | **v2** | Orquestração dos 4 serviços com healthchecks e build autocontido |
 
 ---
 
-## 📡 Catálogo Completo de Endpoints REST
+## 🚀 3. Guia Detalhado de Execução
 
-A documentação interativa com Swagger UI está acessível em `http://localhost:8080/swagger-ui/index.html`.
-
-### 1. Autenticação e Conta (`/auth`)
-- `POST /auth/registro`: Etapa 1 do onboarding comercial (criação de usuário e perfil inicial). Aceita chaves em português ou inglês.
-- `POST /auth/login`: Autenticação via e-mail e senha com retorno de access token JWT (Bearer).
-- `POST /auth/refresh`: Renovação segura de access token via refresh token.
-- `GET /auth/me`: Retorna os dados do estabelecimento vinculado ao usuário autenticado.
-
-### 2. Estabelecimentos Comerciais (`/estabelecimento`, `/estabelecimentos`)
-- `GET /estabelecimento` ou `GET /estabelecimentos`: Listagem de estabelecimentos comerciais ativos (Requer autenticação).
-- `GET /estabelecimento/me`: Consulta do perfil comercial associado ao usuário logado.
-- `GET /estabelecimento/{id}`: Busca detalhada de estabelecimento por identificador.
-- `PUT /estabelecimento/{id}`: Etapa 2 do onboarding comercial (atualização de endereço estruturado, dias/horários de funcionamento e itens críticos).
-
-### 3. Itens Críticos em Risco (`/itemcritico`, `/itens-criticos`)
-- `POST /itemcritico` ou `POST /itemcritico/registrar`: Cadastro de bens vulneráveis à cota de alagamento (freezers, maquinário, estoques no chão).
-- `GET /itemcritico` ou `GET /itemcritico/listar?estabelecimentoId={id}`: Listagem resiliente de itens críticos (retorna lista vazia caso não haja itens cadastrados).
-- `GET /itemcritico/{id}`: Consulta de item crítico por ID.
-- `PUT /itemcritico/{id}`: Atualização de nome e descrição de proteção do item.
-- `DELETE /itemcritico/{id}`: Exclusão de item crítico.
-
-### 4. Checklist Preventivo (`/checklists`)
-- `POST /checklists/registrar`: Cadastro de tarefa preventiva (ex: "Desligar disjuntor geral", "Subir freezer 40cm").
-- `GET /checklists/listar?estabelecimentoId={id}`: Listagem de tarefas ordenadas por prioridade.
-- `GET /checklists/{id}`: Busca de tarefa de checklist por ID.
-- `PUT /checklists/{id}`: Atualização de status da tarefa (`PENDENTE`, `EM_ANDAMENTO`, `CONCLUIDO`).
-- `DELETE /checklists/{id}`: Exclusão de tarefa de checklist.
-
-### 5. Telemetria Hidrometeorológica (`/telemetria`)
-- `GET /telemetria/dashboard`: Dados ambientais consolidados da estação de Belém (cota da maré, tendência, chuva, vento, preamar previsto e nível de risco).
-- `GET /telemetria/grafico`: Série temporal de leituras para renderização no componente visual `TideChart` com horários formatados.
-- `GET /telemetria/historico?estacaoCodigo={codigo}`: Últimas 10 leituras observadas.
-- `POST /telemetria/sincronizar`: Disparo manual da sincronização em tempo real contra as APIs Open-Meteo e Marine.
-- `POST /telemetria/manual`: Inserção manual de leitura técnica por operadores.
-
-### 6. Análise de Risco e Inteligência Artificial (`/risco`)
-- `GET /risco/atual?localidade={bairro}`: Orquestra a coleta de telemetria, busca das 20 variáveis GFS, predição do modelo de IA e classificação de risco final (`BAIXO`, `MEDIO`, `ALTO`).
-
-### 7. Alertas e Notificações (`/alertas`)
-- `GET /alertas`: Listagem de alertas públicos emitidos pela Defesa Civil.
-- `POST /alertas`: Criação de novo comunicado de emergência com opção de disparo automático via WhatsApp por bairro.
-
-### 8. Ocorrências e Sinistros (`/ocorrencias`)
-- `POST /ocorrencias`: Registro de sinistro pós-alagamento com protocolo sequencial único e estimativa de prejuízo.
-- `GET /ocorrencias`: Listagem das ocorrências registradas pelo estabelecimento autenticado (suporta filtro opcional por `status`).
-- `GET /ocorrencias/{id}`: Detalhe de uma ocorrência específica com validação de titularidade do comércio.
-- `GET /ocorrencias/protocolo/{protocolo}`: Consulta rápida por código do protocolo oficial (ex: `OC-1-1`).
-- `POST /ocorrencias/{id}/fotos`: Upload de comprovantes e fotos da ocorrência em formato multipart.
-- `GET /uploads/ocorrencias/{nomeArquivo}`: Download e visualização pública de fotos e comprovantes anexados.
+Você pode executar o projeto de duas formas:
+- **Opção A (Recomendada):** 100% via **Docker Compose**, subindo toda a aplicação (Postgres, IA, WhatsApp e Backend) com um único comando e sem necessidade de instalar Java ou Python na máquina.
+- **Opção B (Desenvolvimento Ativo):** Executando os serviços de infraestrutura no Docker e a aplicação Spring Boot localmente no host via Gradle para depuração em tempo real.
 
 ---
-
-## 🗄️ Modelo de Dados & Migrações Flyway (V1 a V24)
-
-O banco de dados é estruturado na **3ª Forma Normal (3FN)** com índices B-Tree, constraints estritas de integridade relacional e índices parciais para soft delete:
-
-- **V1 a V6:** Criação de `estabelecimento`, `usuario`, `estabelecimento_horarios`, `alerta`, `ocorrencias` e soft delete.
-- **V7 a V10:** Criação de `itens_criticos`, ajustes em sinistros e correções de índices.
-- **V11 a V14:** Endereço comercial estruturado, `itens_checklist` e `ocorrencia_fotos`.
-- **V15 a V18:** Criação e expansão de `leituras_telemetria`, normalização de bairros e índice único de e-mail ativo.
-- **V19:** Tabela `previsoes_chuva_ml` para histórico e auditoria de previsões do modelo de Machine Learning.
-- **V20:** Tabela `envios_alerta_whatsapp` com fila, status e auditoria de mensagens enviadas.
-- **V21:** Limpeza de colunas legadas e adição de índices compostos (`idx_ocorrencias_status_data`).
-- **V22:** Endurecimento com constraints `CHECK` para todos os Enums e valores não negativos.
-- **V23:** Adição da coluna `fonte` em `leituras_telemetria` (`OPEN_METEO`, `TABUA_MARE`) com restrição de unicidade idempotente `uq_telemetria_chave`.
-- **V24:** Índice funcional case-insensitive `LOWER(email)` para prevenir duplicidades de cadastro.
-
----
-
-## 🚀 Como Executar o Projeto
 
 ### Pré-requisitos
-- **Docker** e **Docker Compose** (recomendado para execução completa de todos os serviços).
-- **Java 21** (JDK 21 LTS) e **Gradle** (caso deseje rodar a aplicação Spring Boot no host).
-- **Git**.
+Antes de começar, certifique-se de ter instalado no seu computador:
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (com Docker Compose v2 ativo).
+- [Git](https://git-scm.com/) instalado.
+- *(Opcional, apenas para Opção B)* [JDK 21](https://adoptium.net/) configurado no `PATH`.
 
 ---
 
-### Opção 1: Execução 100% via Docker Compose (Recomendado)
+### Passo 1: Clonar o Repositório
 
-Esta é a maneira mais simples e recomendada para subir o ambiente completo (Postgres, IA, WhatsApp e Backend) com um único comando:
+Abra o seu terminal (PowerShell no Windows, ou Bash/Zsh no Linux/macOS) e execute:
 
-1. **Clone o repositório:**
-   ```bash
-   git clone https://github.com/MonkeyCodeUnama/mare-alerta-backend.git
-   cd mare-alerta-backend
-   ```
-
-2. **Configure o arquivo de ambiente:**
-   ```bash
-   cp .env.example .env
-   ```
-   > O arquivo `.env` já vem pré-configurado com credenciais de desenvolvimento seguras e `IA_BUILD_CONTEXT=./docker/weather-model`.
-
-3. **Inicie todos os serviços com build:**
-   ```bash
-   docker compose up -d --build
-   ```
-
-4. **Verifique o status de saúde dos contêineres:**
-   ```bash
-   docker compose ps
-   ```
-   Todos os contêineres devem reportar `healthy` ou `running`:
-   - `marealerta_pg` (Porta 5432)
-   - `marealerta_ia` (Porta 8000)
-   - `marealerta_whatsapp` (Porta 8081)
-   - `marealerta_app` (Porta 8080)
-
-5. **Acompanhe os logs em tempo real:**
-   ```bash
-   docker compose logs -f app
-   ```
+```bash
+git clone https://github.com/MonkeyCodeUnama/mare-alerta-backend.git
+cd mare-alerta-backend
+```
 
 ---
 
-### Opção 2: Execução Híbrida (Infraestrutura no Docker + Backend no Host)
+### Passo 2: Configurar o Arquivo de Ambiente (`.env`)
 
-Ideal para desenvolvimento ativo no código Java com reinicialização rápida via Gradle:
+O projeto utiliza um arquivo `.env` para centralizar credenciais de banco, segredos JWT e portas de serviço. Um modelo pronto e funcional de desenvolvimento já está disponível:
 
-1. **Inicie a infraestrutura de apoio (PostgreSQL, IA e WhatsApp):**
+```bash
+# No Linux ou macOS:
+cp .env.example .env
+
+# No Windows (PowerShell):
+Copy-Item .env.example .env
+```
+
+> **Nota:** As configurações padrão do `.env.example` já vêm calibradas para desenvolvimento local (`POSTGRES_DB=marealerta_dev`, portas `8080`, `8000`, `8081` e `5432`). Nenhuma alteração manual é obrigatória para a execução inicial.
+
+---
+
+### Passo 3: Executar via Docker Compose (Modo 100% Autocontido)
+
+Esta é a opção padrão e recomendada. O Docker Compose iniciará os 4 contêineres na ordem correta, aguardando os testes de saúde (*healthchecks*):
+
+```bash
+docker compose up -d --build
+```
+
+#### O que o Docker Compose inicializa:
+1. **`marealerta_pg` (Porta `5432`):** Sobe o PostgreSQL 16 Alpine e aguarda estar pronto para receber conexões (`pg_isready`).
+2. **`marealerta_ia` (Porta `8000`):** Compila o microserviço Python FastAPI a partir da pasta autocontida `docker/weather-model/`, carrega o modelo treinado `model_bundle.joblib` e testa a rota de saúde `/health`.
+3. **`marealerta_whatsapp` (Porta `8081`):** Inicializa a Evolution API v2, criando automaticamente o schema isolado `evolution` no PostgreSQL.
+4. **`marealerta_app` (Porta `8080`):** Aguarda o PostgreSQL e a IA estarem saudáveis (`condition: service_healthy`), executa as 24 migrações do Flyway e inicia a API Spring Boot.
+
+#### Verificando o Status de Saúde:
+Para checar se todos os serviços subiram corretamente:
+
+```bash
+docker compose ps
+```
+
+Todos os serviços devem apresentar status `Up` ou `healthy`:
+
+```text
+NAME                  IMAGE                        COMMAND                  SERVICE             STATUS
+marealerta_app        mare-alerta-backend-app      "sh -c 'sleep 3 && j…"   app                 Up (healthy)
+marealerta_ia         mare-alerta-backend-weather  "uvicorn app:app --h…"   weather-model       Up (healthy)
+marealerta_pg         postgres:16-alpine           "docker-entrypoint.s…"   postgres            Up (healthy)
+marealerta_whatsapp   evoapicloud/evolution-api    "docker-entrypoint.s…"   evolution_api       Up
+```
+
+#### Acompanhando os Logs da Aplicação:
+Para visualizar a inicialização e os logs em tempo real:
+
+```bash
+# Ver logs do backend Spring Boot:
+docker compose logs -f app
+
+# Ver logs do modelo preditivo de IA:
+docker compose logs -f weather-model
+```
+
+#### Parando os Serviços:
+Para encerrar a execução dos contêineres mantendo os dados persistidos:
+
+```bash
+docker compose down
+```
+
+---
+
+### Passo 4: Execução Híbrida (Infraestrutura no Docker + Backend no Host)
+
+Se você estiver desenvolvendo no código Java e deseja reinicializações instantâneas via hot-reload ou depuração na IDE (IntelliJ, VS Code, Eclipse):
+
+1. **Suba apenas as dependências de infraestrutura no Docker:**
    ```bash
    docker compose up -d postgres weather-model evolution_api
    ```
@@ -235,90 +181,129 @@ Ideal para desenvolvimento ativo no código Java com reinicialização rápida v
      ```powershell
      ./gradlew bootRun
      ```
-   - **No Linux / macOS:**
+   - **No Linux ou macOS:**
      ```bash
      ./gradlew bootRun
      ```
 
-3. As migrações do Flyway (`V1` a `V24`) serão executadas automaticamente ao inicializar o Spring Boot.
+As migrações do banco (`V1` a `V24`) serão aplicadas automaticamente pelo Flyway na inicialização.
 
 ---
 
-## 🧪 Testes Automatizados
+### Passo 5: Conectar o WhatsApp na Evolution API (Opcional para Alertas)
 
-O projeto possui uma suíte abrangente de **131 testes automatizados** cobrindo controladores REST, regras de negócio de serviços, validações de segurança e clientes HTTP externos:
+Caso deseje testar os disparos de alertas de enchente via WhatsApp para comerciantes:
 
-```powershell
+1. Abra no navegador o painel administrativo da Evolution API: **`http://localhost:8081/manager`**.
+2. No campo de autenticação, informe a API Key padrão: `marealerta_secret_key_2026`.
+3. Localize a instância **`marealerta_belem`** e clique no botão do **QR Code**.
+4. No seu WhatsApp do celular: vá em *Configurações* (ou menu de 3 pontinhos) ➡️ *Aparelhos Conectados* ➡️ *Conectar um aparelho* e aponte a câmera para a tela.
+5. Uma vez conectado, o status mudará para `open` e o backend poderá despachar mensagens automaticamente.
+
+---
+
+### Passo 6: Executar a Bateria de Testes Automatizados
+
+O backend conta com uma suíte de **131 testes automatizados** (testes unitários, mocks de terceiros, validações de controllers e integridade de repositórios). Para executá-la:
+
+```bash
+# No Windows (PowerShell):
+./gradlew test --no-daemon
+
+# No Linux ou macOS:
 ./gradlew test
 ```
 
-### Cobertura da Suíte:
-- **Autenticação & Segurança:** Ciclo de login, registro, consulta de perfil (`/auth/me`), emissão/renovação de JWT e Rate Limiting por IP (`RateLimitFilterTest`, `AuthServiceTest`, `AuthControllerTest`, `JwtServiceTest`).
-- **Telemetria:** Ingestão de dados Open-Meteo, cálculo de tendências, pico de preamar e pontos para o gráfico (`TelemetriaServiceTest`, `TelemetriaControllerTest`, `OpenMeteoClientTest`).
-- **Predição & Risco:** Resolução das 20 features GFS, integração com `weather-model`, matriz de risco e auditoria em banco (`RiscoServiceTest`, `RiscoControllerTest`, `MlApiClienteTest`).
-- **Itens Críticos & Checklists:** CRUD de bens em risco, tratamento de listas vazias e tarefas preventivas (`ItemCriticoServiceTest`, `ItemCriticoControllerTest`, `ChecklistServiceTest`, `ChecklistControllerTest`).
-- **Alertas & WhatsApp:** Envio de alertas, validação de números E.164 e persistência de histórico (`AlertaServiceTest`, `AlertaControllerTest`, `EvolutionApiClientTest`).
-- **Ocorrências:** Registro de sinistros, listagens, busca por protocolo e upload de arquivos (`OcorrenciaServiceTest`, `OcorrenciaControllerTest`).
-- **Integração End-to-End:** Validação com Flyway e PostgreSQL (`BackendApplicationTests`).
+O relatório visual completo em HTML é gerado em:
+`build/reports/tests/test/index.html`
 
 ---
 
-## 🔗 Portas e URLs de Acesso
+## 🌐 4. Portas e URLs de Acesso
 
-| Serviço | URL | Descrição |
+Com o ambiente em execução, acesse os seguintes serviços e documentações:
+
+| Serviço | URL de Acesso | Descrição |
 | :--- | :--- | :--- |
-| **API Backend (Swagger UI)** | `http://localhost:8080/swagger-ui/index.html` | Interface interativa de testes OpenAPI 3 |
-| **OpenAPI Schema JSON** | `http://localhost:8080/v3/api-docs` | Especificação completa da API |
-| **Microserviço IA (FastAPI Docs)** | `http://localhost:8000/docs` | Documentação Swagger do modelo preditivo |
-| **Healthcheck da IA** | `http://localhost:8000/health` | Verificação de integridade e carregamento do modelo |
-| **Painel WhatsApp (Evolution API)** | `http://localhost:8081/manager` | Painel de gestão de instâncias e conexão QR Code |
-| **Banco PostgreSQL** | `localhost:5432` | Banco de dados `marealerta_dev` |
+| **Documentação Interativa (Swagger UI)** | [`http://localhost:8080/swagger-ui/index.html`](http://localhost:8080/swagger-ui/index.html) | Teste e visualize todos os endpoints da API pelo navegador |
+| **Esquema OpenAPI (JSON)** | [`http://localhost:8080/v3/api-docs`](http://localhost:8080/v3/api-docs) | Contrato formal consumido pelo frontend e geradores de SDK |
+| **Imagens de Sinistros (Uploads)** | `http://localhost:8080/uploads/ocorrencias/{arquivo}` | Servidor de fotos e comprovantes anexados pelo usuário |
+| **Microserviço IA (FastAPI Docs)** | [`http://localhost:8000/docs`](http://localhost:8000/docs) | Swagger interativo do modelo preditivo de Machine Learning |
+| **Healthcheck da IA** | [`http://localhost:8000/health`](http://localhost:8000/health) | Verificação de integridade e carregamento do modelo joblib |
+| **Painel WhatsApp (Evolution API)** | [`http://localhost:8081/manager`](http://localhost:8081/manager) | Painel web para gestão de instâncias e conexão QR Code |
+| **Banco de Dados (PostgreSQL)** | `localhost:5432` | Banco relacional (Database: `marealerta_dev`, User: `postgres`) |
 
 ---
 
-## 📁 Estrutura do Repositório
+## ⚡ 5. Exemplos Rápidos de Uso da API
 
+Você pode testar as principais rotas da API diretamente pelo Swagger UI ou utilizando comandos `curl` ou PowerShell:
+
+### 1. Consultar Dashboard de Telemetria e Maré em Tempo Real
+Retorna a cota atual do mar em Belém (MSL), a tendência (`SUBINDO`, `DESCENDO`), o horário previsto do preamar e o nível de risco:
+```bash
+curl -X GET http://localhost:8080/telemetria/dashboard
 ```
+
+### 2. Avaliar Previsão de Risco com Inferência da IA
+Orquestra a coleta ao vivo de 20 parâmetros atmosféricos e executa o modelo preditivo:
+```bash
+curl -X GET "http://localhost:8080/risco/atual?localidade=Campina"
+```
+
+### 3. Autenticar Usuário e Obter Token JWT
+```bash
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"comerciante@belem.com","senha":"senhaSegura123"}'
+```
+
+---
+
+## 📁 6. Estrutura de Diretórios do Projeto
+
+```text
 mare-alerta-backend/
 ├── docker/
 │   └── weather-model/                 # Runtime autocontido do modelo preditivo de IA
-│       ├── Dockerfile                 # Contêiner Python 3.13-slim
+│       ├── Dockerfile                 # Imagem Python 3.13-slim otimizada
 │       ├── requirements.txt           # Dependências (FastAPI, scikit-learn, joblib)
 │       ├── app.py                     # API FastAPI (/health, /v1/predict)
-│       ├── rain_runtime.py            # Pipeline de inferência SGD
+│       ├── rain_runtime.py            # Pipeline de inferência SGD calibrado
 │       └── artifacts/                 # model_bundle.joblib e metadata.json
-├── docs/                              # Documentação técnica aprofundada
-│   ├── GUIA_BACKEND.md                # Guia de arquitetura viva e histórico de commits
-│   └── IA_PREVISAO_CHUVA_BACKEND.md   # Especificação das features climáticas
+├── docs/                              # Documentação técnica e de arquitetura
+│   ├── GUIA_BACKEND.md                # Guia vivo de desenvolvimento e histórico de commits
+│   └── IA_PREVISAO_CHUVA_BACKEND.md   # Especificação formal das features do modelo de ML
 ├── src/
 │   ├── main/
 │   │   ├── java/com/marealerta/backend/
-│   │   │   ├── alerta/                # Gestão e despacho de alertas
-│   │   │   ├── auth/                  # Segurança, JWT e usuários
-│   │   │   ├── checklist/             # Checklists de prevenção
-│   │   │   ├── estabelecimento/       # Cadastro de comércios e horários
-│   │   │   ├── itens/                 # Itens críticos em cota de risco
-│   │   │   ├── ocorrencias/           # Sinistros e upload de fotos
-│   │   │   ├── risco/                 # Predição ML e matriz de risco
-│   │   │   ├── shared/                # Filtros de Rate Limit e segurança
-│   │   │   └── telemetria/            # Ingestão Open-Meteo e cota marinha
+│   │   │   ├── alerta/                # Emissão e despacho de comunicados de emergência
+│   │   │   ├── auth/                  # Autenticação JWT, login, registro e refresh token
+│   │   │   ├── checklist/             # Checklists de prevenção e mitigação de danos
+│   │   │   ├── estabelecimento/       # Cadastro de comércios, endereçamento e horários
+│   │   │   ├── itens/                 # Cadastro e proteção de bens em cota crítica
+│   │   │   ├── ocorrencias/           # Registro de sinistros, protocolos e upload de fotos
+│   │   │   ├── risco/                 # Integração com IA, orquestração e matriz de risco
+│   │   │   ├── shared/                # Filtros de Rate Limit, CORS, Security e WebConfig
+│   │   │   ├── telemetria/            # Ingestão de dados Open-Meteo e cota de maré
+│   │   │   └── usuario/               # Entidade de credenciais e vínculos
 │   │   └── resources/
-│   │       ├── db/migration/          # Migrações Flyway (V1 a V24)
-│   │       ├── application.yaml       # Configuração base
+│   │       ├── db/migration/          # 24 migrações Flyway (V1 a V24)
+│   │       ├── application.yaml       # Configuração base do Spring Boot
 │   │       └── application-prod.yaml  # Configuração de produção
-│   └── test/                          # 131 testes unitários e de integração
-├── docker-compose.yml                 # Orquestração completa dos 4 contêineres
-├── Dockerfile                         # Build multi-stage da aplicação Spring Boot
+│   └── test/                          # 131 testes automatizados (unitários e controllers)
+├── docker-compose.yml                 # Orquestrador dos 4 contêineres do ecossistema
+├── Dockerfile                         # Build multi-stage da aplicação Java 21
 ├── build.gradle.kts                   # Configuração de build Gradle Kotlin DSL
-├── .env.example                       # Modelo de variáveis de ambiente
-└── README.md                          # Documentação principal
+├── .env.example                       # Gabarito de variáveis de ambiente
+└── README.md                          # Este documento oficial
 ```
 
 ---
 
-## 👥 Autores e Contribuição
+## 👥 7. Autoria e Desenvolvimento
 
-Desenvolvido pela equipe de engenharia do **Maré Alerta** na **Unama / MonkeyCode**:
-- Arquitetura, Backend e Integração: Daniel das Neves (`AKIRA-NZR`)
-- Machine Learning & Modelo Meteorológico: Equipe de IA Maré Alerta
-- Integração Frontend & Mobile: Equipe Frontend Maré Alerta
+Projeto concebido e desenvolvido pela equipe de engenharia do **Maré Alerta** no âmbito da **Unama / MonkeyCode**:
+- **Arquitetura de Software & Backend:** Daniel das Neves (`AKIRA-NZR`)
+- **Inteligência Artificial & Meteorologia:** Equipe de Machine Learning Maré Alerta
+- **Interface & Experiência:** Equipe Frontend & Mobile Maré Alerta
