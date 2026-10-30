@@ -27,27 +27,17 @@ import java.io.IOException;
 @RestController
 @RequestMapping("/ocorrencias")
 @RequiredArgsConstructor
-<<<<<<< HEAD
 @Tag(name = "Ocorrencia", description = "Endpoints de ocorrencias e fotos")
 @SecurityRequirement(name = "bearerAuth")
-=======
-@Tag(name = "Ocorrencias", description = "Endpoints de ocorrências e fotos")
->>>>>>> 5881426 (fix: corrige bugs em ocorrencias, risco e telemetria e adiciona testes unitarios)
 public class OcorrenciaController {
 
     private final OcorrenciaService ocorrenciaService;
 
     @Operation(summary = "Registrar ocorrência do usuário")
     @PostMapping
-<<<<<<< HEAD
     @ApiResponse(responseCode = "201", description = "Ocorrência registrada")
-    public ResponseEntity<OcorrenciaResponse> registrarOcorrencia(@AuthenticationPrincipal  Usuario usuario, @RequestBody OcorrenciaRequest ocorrenciaRequest){
-        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
-                .body(ocorrenciaService.registrarO(usuario, ocorrenciaRequest));
-=======
     public ResponseEntity<OcorrenciaResponse> registrarOcorrencia(@AuthenticationPrincipal Usuario usuario, @RequestBody OcorrenciaRequest ocorrenciaRequest) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ocorrenciaService.registrarO(usuario, ocorrenciaRequest));
->>>>>>> 5881426 (fix: corrige bugs em ocorrencias, risco e telemetria e adiciona testes unitarios)
     }
 
     @Operation(summary = "Registrar foto da ocorrência do usuário")

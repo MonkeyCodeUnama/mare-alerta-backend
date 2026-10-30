@@ -6,7 +6,6 @@ import java.time.Instant;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonAlias;
 import com.marealerta.backend.risco.model.StatusQualidadeMl;
 
 import lombok.AllArgsConstructor;
@@ -30,11 +29,7 @@ public class PrevisaoMlResponse {
     private Instant issuedAt;
 
     @JsonProperty("target_time")
-<<<<<<< HEAD
     @JsonAlias("window_end")
-=======
-    @JsonAlias({"window_end", "target_time"})
->>>>>>> abdcf04 (feat(risco): alinha contrato rain-hourly-v1 da IA, adiciona truncamento UTC e fallback heuristico)
     private Instant targetTime;
 
     @JsonProperty("horizon_hours")

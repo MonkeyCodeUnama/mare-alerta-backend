@@ -3,6 +3,7 @@ package com.marealerta.backend.risco.service;
 import com.marealerta.backend.risco.dto.PrevisaoMlRequest;
 import com.marealerta.backend.risco.dto.PrevisaoMlResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
@@ -20,6 +21,11 @@ public class MlApiCliente {
     private final String mlApiUrl;
     private final String mlApiKey;
 
+    public MlApiCliente(ObjectMapper objectMapper, String mlApiUrl) {
+        this(objectMapper, mlApiUrl, "");
+    }
+
+    @Autowired
     public MlApiCliente(ObjectMapper objectMapper,
                         @Value("${IA_CHUVA_URL:http://weather-model:8000/v1/predict}") String mlApiUrl,
                         @Value("${IA_CHUVA_API_KEY:}") String mlApiKey){

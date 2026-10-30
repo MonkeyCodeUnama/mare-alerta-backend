@@ -81,7 +81,6 @@ class MlApiClienteTest {
     void deveLancarExcecaoQuandoFastApiRetornarErroHttp() throws Exception {
         HttpResponse<String> mockResponse = mock(HttpResponse.class);
         when(mockResponse.statusCode()).thenReturn(500);
-        when(mockResponse.body()).thenReturn("Internal Server Error");
         when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenReturn(mockResponse);
 
         PrevisaoMlRequest request = new PrevisaoMlRequest(
@@ -96,6 +95,6 @@ class MlApiClienteTest {
 
         assertThatThrownBy(() -> cliente.solicitarPrevisao(request))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("FastAPII retornou erro HTTP500");
+                .hasMessageContaining("FastAPI retornou erro HTTP 500");
     }
 }
