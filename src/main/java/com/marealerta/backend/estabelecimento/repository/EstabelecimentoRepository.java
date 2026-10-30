@@ -20,4 +20,6 @@ public interface EstabelecimentoRepository extends JpaRepository<Estabelecimento
     List<Estabelecimento> findByBairroAndTipoNegocio(Bairro bairro, TipoNegocio tipoNegocio);
 
     List<Estabelecimento> findByAtivoTrue();
+
+    List<Estabelecimento> findByBairroAndAtivoTrue(Bairro bairro);
 }

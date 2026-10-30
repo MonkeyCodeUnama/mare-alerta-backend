@@ -23,7 +23,6 @@ public class EstabelecimentoRequest {
     @JsonAlias({"name"})
     private String nome;
 
-    @NotBlank(message = "O documento/CNPJ é obrigatório")
     @JsonAlias({"cnpj"})
     private String documento;
 

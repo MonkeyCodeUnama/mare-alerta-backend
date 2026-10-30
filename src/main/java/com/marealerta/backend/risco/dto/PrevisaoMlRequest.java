@@ -13,4 +13,3 @@ public record PrevisaoMlRequest(
         Map<String, BigDecimal> features,
         Map<String, String> units
 ) {}
-

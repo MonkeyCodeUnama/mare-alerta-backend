@@ -13,18 +13,21 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 public class CorsConfig {
 
+    @Value("${APP_CORS_ALLOWED_ORIGINS:${CORS_ALLOWED_ORIGINS:http://localhost:5173,https://marealerta.andr3dav1d.dev}}")
+    private String allowedOrigins;
+
     @Bean
-    CorsConfigurationSource corsConfigurationSource(
-            @Value("${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,https://marealerta.andr3dav1d.dev}") String origins) {
+    CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.stream(origins.split(","))
+        config.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .filter(origin -> !origin.isEmpty())
                 .toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With"));
         config.setExposedHeaders(List.of("Location"));
         config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;

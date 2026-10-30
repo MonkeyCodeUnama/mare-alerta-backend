@@ -16,6 +16,7 @@ WORKDIR /app
 RUN addgroup -S spring && adduser -S spring -G spring
 COPY --from=build /workspace/build/libs/*.jar /app/app.jar
 
+RUN mkdir -p /app/uploads/ocorrencias && chown -R spring:spring /app/uploads
 USER spring:spring
 EXPOSE 8080
 

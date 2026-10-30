@@ -38,6 +38,11 @@ public class LeituraTelemetria {
     private String estacaoNome;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    @Builder.Default
+    private FonteTelemetria fonte = FonteTelemetria.OPEN_METEO;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "tipo_registro", nullable = false, length = 50)
     private TipoRegistroTelemetria tipoRegistro;
 

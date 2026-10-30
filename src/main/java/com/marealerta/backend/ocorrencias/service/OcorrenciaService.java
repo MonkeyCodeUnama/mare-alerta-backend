@@ -12,36 +12,36 @@ import com.marealerta.backend.usuario.model.Usuario;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Optional;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class OcorrenciaService {
 
-    @Value("${app:uploads.ocorrencias-dir}")
+    @Value("${app.uploads.ocorrencias-dir:uploads/ocorrencias}")
     private String ocorrenciaDir;
     private final OcorrenciaRepository oRepository;
     private final OcorrenciaFotoRepository ofRepository;
     private final EstabelecimentoRepository estabelecimentoRepository;
 
-
     @Transactional
-    public OcorrenciaResponse registrarO(Usuario usuario, OcorrenciaRequest ocorrenciaRequest){
-        if(usuario == null){
+    public OcorrenciaResponse registrarO(Usuario usuario, OcorrenciaRequest ocorrenciaRequest) {
+        if (usuario == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "usuario nao autenticado");
+        }
+        if (usuario.getEstabelecimento() == null || usuario.getEstabelecimento().getId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "usuario nao possui estabelecimento vinculado");
         }
 
         Long estabId = usuario.getEstabelecimento().getId();
@@ -49,7 +49,7 @@ public class OcorrenciaService {
         Estabelecimento estab = estabelecimentoRepository.findById(estabId)
                 .orElseThrow(() -> new EntityNotFoundException("estabelecimento nao encontrado"));
 
-        long quant= oRepository.countByEstabelecimentoId(estab.getId());
+        long quant = oRepository.countByEstabelecimentoId(estab.getId());
         quant += 1;
 
         String protocolo = "OC-" + estab.getId() + "-" + quant;
@@ -71,27 +71,28 @@ public class OcorrenciaService {
                 .protocolo(protocolo)
                 .build();
 
-                ocorrencia = oRepository.save(ocorrencia);
+        ocorrencia = oRepository.save(ocorrencia);
 
-                OcorrenciaResponse response = OcorrenciaResponse.fromEntity(ocorrencia);
-
-                return response;
+        return OcorrenciaResponse.fromEntity(ocorrencia);
     }
 
-     public OcorrenciaFotoResponse adicionarFoto(Usuario usuario, Long ocorrenciaId, MultipartFile arquivo) throws IOException {
-         Ocorrencia ocorrencia = oRepository.findById(ocorrenciaId)
-                 .orElseThrow(() -> new EntityNotFoundException("ocorrencia nao encontrada"));
-        if(ocorrencia == null){
-            throw new BadRequestException();
+    public OcorrenciaFotoResponse adicionarFoto(Usuario usuario, Long ocorrenciaId, MultipartFile arquivo) throws IOException {
+        if (usuario == null || usuario.getEstabelecimento() == null || usuario.getEstabelecimento().getId() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "usuario nao autenticado ou sem estabelecimento");
+        }
+        if (arquivo == null || arquivo.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "arquivo de foto invalido ou vazio");
         }
 
-        if(ocorrencia.getEstabelecimento().getId() != usuario.getEstabelecimento().getId()){
-            throw new BadRequestException();
-        }
+        Ocorrencia ocorrencia = oRepository.findById(ocorrenciaId)
+                .orElseThrow(() -> new EntityNotFoundException("ocorrencia nao encontrada"));
 
+        if (!Objects.equals(ocorrencia.getEstabelecimento().getId(), usuario.getEstabelecimento().getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "usuario nao autorizado a anexar foto nesta ocorrencia");
+        }
 
         String nomeArquivo = arquivo.getOriginalFilename();
-        String nomeFoto = UUID.randomUUID().toString() + "-" + nomeArquivo;
+        String nomeFoto = UUID.randomUUID().toString() + "-" + (nomeArquivo != null ? nomeArquivo : "foto.jpg");
 
         Files.createDirectories(Paths.get(ocorrenciaDir));
 

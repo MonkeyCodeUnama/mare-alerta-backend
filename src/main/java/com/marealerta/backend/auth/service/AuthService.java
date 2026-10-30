@@ -1,5 +1,7 @@
 package com.marealerta.backend.auth.service;
+
 import com.marealerta.backend.auth.dto.LoginRequest;
+import com.marealerta.backend.auth.dto.RefreshTokenRequest;
 import com.marealerta.backend.auth.dto.RegisterRequest;
 import com.marealerta.backend.auth.dto.TokenResponse;
 import com.marealerta.backend.estabelecimento.model.Bairro;
@@ -27,10 +29,10 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-
     @Transactional
     public TokenResponse register(RegisterRequest register) {
-        if (usuarioRepository.existsByEmail(register.getEmail())) {
+        String emailNormalizado = register.getEmail() != null ? register.getEmail().trim().toLowerCase() : "";
+        if (usuarioRepository.existsByEmail(emailNormalizado)) {
             throw new EmailAlreadyRegisteredException();
         }
 
@@ -54,37 +56,50 @@ public class AuthService {
         estabelecimentoRepository.save(estab);
 
         Usuario user = new Usuario();
-        user.setEmail(register.getEmail());
+        user.setEmail(emailNormalizado);
         user.setSenha(passwordEncoder.encode(register.getSenha()));
         user.setEstabelecimento(estab);
 
         usuarioRepository.saveAndFlush(user);
 
-        String token = jwtService.gerarT(user);
+        String token = jwtService.gerarToken(user);
+        String refreshToken = jwtService.gerarRefreshToken(user);
+
         return TokenResponse.builder()
                 .token(token)
+                .refreshToken(refreshToken)
+                .tipo("Bearer")
+                .expiraEm(jwtService.getTempoExp() / 1000)
                 .estabelecimentoId(estab.getId())
                 .email(user.getEmail())
                 .build();
-
     }
 
     public TokenResponse login(LoginRequest request) {
         try {
+            String emailNormalizado = request.getEmail() != null ? request.getEmail().trim().toLowerCase() : "";
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            request.getEmail(),
+                            emailNormalizado,
                             request.getSenha()
                     )
             );
 
             Usuario user = (Usuario) auth.getPrincipal();
 
-            String token = jwtService.gerarT(user);
+            if (user.getDeletedAt() != null || (user.getEstabelecimento() != null && Boolean.FALSE.equals(user.getEstabelecimento().getAtivo()))) {
+                throw new InvalidCredentialsException();
+            }
+
+            String token = jwtService.gerarToken(user);
+            String refreshToken = jwtService.gerarRefreshToken(user);
             Long estabId = user.getEstabelecimento() != null ? user.getEstabelecimento().getId() : null;
 
             return TokenResponse.builder()
                     .token(token)
+                    .refreshToken(refreshToken)
+                    .tipo("Bearer")
+                    .expiraEm(jwtService.getTempoExp() / 1000)
                     .estabelecimentoId(estabId)
                     .email(user.getEmail())
                     .build();
@@ -92,5 +107,33 @@ public class AuthService {
         } catch (BadCredentialsException e) {
             throw new InvalidCredentialsException();
         }
+    }
+
+    public TokenResponse refreshToken(RefreshTokenRequest request) {
+        String token = request.getRefreshToken();
+        if (!jwtService.isRefreshTokenValido(token)) {
+            throw new InvalidCredentialsException();
+        }
+
+        String email = jwtService.getUserName(token);
+        Usuario user = usuarioRepository.findByEmail(email)
+                .orElseThrow(InvalidCredentialsException::new);
+
+        if (user.getDeletedAt() != null || (user.getEstabelecimento() != null && Boolean.FALSE.equals(user.getEstabelecimento().getAtivo()))) {
+            throw new InvalidCredentialsException();
+        }
+
+        String novoAccessToken = jwtService.gerarToken(user);
+        String novoRefreshToken = jwtService.gerarRefreshToken(user);
+        Long estabId = user.getEstabelecimento() != null ? user.getEstabelecimento().getId() : null;
+
+        return TokenResponse.builder()
+                .token(novoAccessToken)
+                .refreshToken(novoRefreshToken)
+                .tipo("Bearer")
+                .expiraEm(jwtService.getTempoExp() / 1000)
+                .estabelecimentoId(estabId)
+                .email(user.getEmail())
+                .build();
     }
 }

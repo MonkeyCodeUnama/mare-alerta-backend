@@ -3,8 +3,9 @@ package com.marealerta.backend.risco.dto;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.marealerta.backend.risco.model.StatusQualidadeMl;
 
 import lombok.AllArgsConstructor;
@@ -18,6 +19,7 @@ import lombok.Setter;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class PrevisaoMlResponse {
 
     @JsonProperty("model_version")

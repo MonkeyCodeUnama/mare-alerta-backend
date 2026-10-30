@@ -27,6 +27,11 @@ public class ApiExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, message, request);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException exception, HttpServletRequest request) {
+        return error(HttpStatus.BAD_REQUEST, exception.getMessage(), request);
+    }
+
     @ExceptionHandler({EmailAlreadyRegisteredException.class, DataIntegrityViolationException.class})
     public ResponseEntity<ApiError> handleConflict(RuntimeException exception, HttpServletRequest request) {
         return error(HttpStatus.CONFLICT, "e-mail já cadastrado", request);

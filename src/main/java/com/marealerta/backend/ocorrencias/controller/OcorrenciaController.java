@@ -10,10 +10,16 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -27,18 +33,17 @@ public class OcorrenciaController {
 
     private final OcorrenciaService ocorrenciaService;
 
-    @Operation(summary = "resgitrar ocorrencia do usuario")
+    @Operation(summary = "Registrar ocorrência do usuário")
     @PostMapping
     @ApiResponse(responseCode = "201", description = "Ocorrência registrada")
-    public ResponseEntity<OcorrenciaResponse> registrarOcorrencia(@AuthenticationPrincipal  Usuario usuario, @RequestBody OcorrenciaRequest ocorrenciaRequest){
-        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
-                .body(ocorrenciaService.registrarO(usuario, ocorrenciaRequest));
+    public ResponseEntity<OcorrenciaResponse> registrarOcorrencia(@AuthenticationPrincipal Usuario usuario, @RequestBody OcorrenciaRequest ocorrenciaRequest) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ocorrenciaService.registrarO(usuario, ocorrenciaRequest));
     }
 
-    @Operation(summary = "resgitrar foto da ocorrencia do usuario")
+    @Operation(summary = "Registrar foto da ocorrência do usuário")
     @PostMapping(value = "/{ocorrenciaId}/fotos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<OcorrenciaFotoResponse> registrarFoto(@AuthenticationPrincipal Usuario usuario, @PathVariable Long ocorrenciaId, @RequestParam("arquivo")MultipartFile arquivo) throws IOException {
-        return ResponseEntity.ok(ocorrenciaService.adicionarFoto(usuario, ocorrenciaId, arquivo));
+    public ResponseEntity<OcorrenciaFotoResponse> registrarFoto(@AuthenticationPrincipal Usuario usuario, @PathVariable Long ocorrenciaId, @RequestParam("arquivo") MultipartFile arquivo) throws IOException {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ocorrenciaService.adicionarFoto(usuario, ocorrenciaId, arquivo));
     }
 
 }
