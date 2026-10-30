@@ -19,4 +19,5 @@ whatsapp:
 
 ia:
   chuva:
-    url: ${IA_CHUVA_URL:http://127.0.0.1:8000/v1/predict}
+    url: ${IA_CHUVA_URL:http://weather-model:8000/v1/predict}
+    api-key: ${IA_CHUVA_API_KEY:}
