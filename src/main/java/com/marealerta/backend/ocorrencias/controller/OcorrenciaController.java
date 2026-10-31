@@ -13,8 +13,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.core.io.Resource;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,6 +46,12 @@ public class OcorrenciaController {
     @PostMapping(value = "/{ocorrenciaId}/fotos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<OcorrenciaFotoResponse> registrarFoto(@AuthenticationPrincipal Usuario usuario, @PathVariable Long ocorrenciaId, @RequestParam("arquivo") MultipartFile arquivo) throws IOException {
         return ResponseEntity.status(HttpStatus.CREATED).body(ocorrenciaService.adicionarFoto(usuario, ocorrenciaId, arquivo));
+    }
+
+    @Operation(summary = "Baixar foto da ocorrência do usuário")
+    @GetMapping("/{ocorrenciaId}/fotos/{fotoId}")
+    public ResponseEntity<Resource> baixarFoto(@AuthenticationPrincipal Usuario usuario, @PathVariable Long ocorrenciaId, @PathVariable Long fotoId) throws IOException {
+        return ocorrenciaService.baixarFoto(usuario, ocorrenciaId, fotoId);
     }
 
 }
