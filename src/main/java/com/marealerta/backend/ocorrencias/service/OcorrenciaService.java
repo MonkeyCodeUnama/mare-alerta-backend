@@ -28,6 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -79,6 +80,17 @@ public class OcorrenciaService {
         ocorrencia = oRepository.save(ocorrencia);
 
         return OcorrenciaResponse.fromEntity(ocorrencia);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OcorrenciaResponse> listar(Usuario usuario) {
+        if (usuario == null || usuario.getEstabelecimento() == null || usuario.getEstabelecimento().getId() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "usuario nao autenticado ou sem estabelecimento");
+        }
+        return oRepository.findByEstabelecimentoIdOrderByDataOcorrenciaDescHoraInicioDesc(usuario.getEstabelecimento().getId())
+                .stream()
+                .map(OcorrenciaResponse::fromEntity)
+                .toList();
     }
 
     public OcorrenciaFotoResponse adicionarFoto(Usuario usuario, Long ocorrenciaId, MultipartFile arquivo) throws IOException {

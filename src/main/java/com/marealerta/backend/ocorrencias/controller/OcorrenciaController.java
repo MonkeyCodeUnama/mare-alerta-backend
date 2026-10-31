@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 
 @RestController
 @RequestMapping("/ocorrencias")
@@ -34,6 +35,12 @@ import java.io.IOException;
 public class OcorrenciaController {
 
     private final OcorrenciaService ocorrenciaService;
+
+    @Operation(summary = "Listar ocorrências do usuário")
+    @GetMapping
+    public ResponseEntity<List<OcorrenciaResponse>> listarOcorrencias(@AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(ocorrenciaService.listar(usuario));
+    }
 
     @Operation(summary = "Registrar ocorrência do usuário")
     @PostMapping
