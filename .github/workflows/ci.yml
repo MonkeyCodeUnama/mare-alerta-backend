@@ -36,6 +36,9 @@ jobs:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: marealerta_test
       EVOLUTION_API_KEY: ci-evolution-key
+      WHATSAPP_API_URL: http://localhost:8081
+      WHATSAPP_API_KEY: ci-evolution-key
+      EVOLUTION_SERVER_URL: http://localhost:8081
       IA_CHUVA_API_KEY: ci-ia-key
     steps:
       - uses: actions/checkout@v4
