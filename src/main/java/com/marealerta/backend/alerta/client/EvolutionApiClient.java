@@ -6,6 +6,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.Map;
 
@@ -27,6 +28,44 @@ public class EvolutionApiClient {
         this.baseUrl = baseUrl.replaceAll("/+$", "");
         this.apiKey = apiKey;
         this.instancia = instancia;
+    }
+
+    public Map<String, Object> consultarEstadoConexao() {
+        try {
+            return chamar("/instance/connectionState/" + instancia, "GET", null);
+        } catch (HttpClientErrorException.NotFound e) {
+            return Map.of("state", "NOT_CREATED");
+        }
+    }
+    public Object consultarInstancia() { return chamarLista("/instance/fetchInstances?instanceName=" + instancia); }
+    public Map<String, Object> obterQrCode() { return chamar("/instance/connect/" + instancia, "GET", null); }
+    public Map<String, Object> conectar() {
+        try {
+            return chamar("/instance/connect/" + instancia, "GET", null);
+        } catch (HttpClientErrorException.NotFound e) {
+            return criarInstancia();
+        }
+    }
+
+    private Map<String, Object> criarInstancia() {
+        return chamar("/instance/create", "POST", Map.of("instanceName", instancia, "integration", "WHATSAPP-BAILEYS", "qrcode", true));
+    }
+    public Map<String, Object> desconectar() { return chamar("/instance/logout/" + instancia, "DELETE", null); }
+    public Map<String, Object> reiniciarInstancia() { desconectar(); return conectar(); }
+
+    private Object chamarLista(String caminho) {
+        HttpHeaders headers = new HttpHeaders(); headers.set("apikey", apiKey);
+        return restTemplate.exchange(baseUrl + caminho, org.springframework.http.HttpMethod.GET, new HttpEntity<>(headers), Object.class).getBody();
+    }
+
+    private Map<String, Object> chamar(String caminho, String metodo, Object body) {
+        HttpHeaders headers = new HttpHeaders(); headers.set("apikey", apiKey); headers.setContentType(MediaType.APPLICATION_JSON);
+        var request = new HttpEntity<>(body, headers);
+        return switch (metodo) {
+            case "POST" -> restTemplate.exchange(baseUrl + caminho, org.springframework.http.HttpMethod.POST, request, Map.class).getBody();
+            case "DELETE" -> restTemplate.exchange(baseUrl + caminho, org.springframework.http.HttpMethod.DELETE, request, Map.class).getBody();
+            default -> restTemplate.exchange(baseUrl + caminho, org.springframework.http.HttpMethod.GET, request, Map.class).getBody();
+        };
     }
 
     public EvolutionSendResponse enviarTexto(String telefone, String mensagem) {

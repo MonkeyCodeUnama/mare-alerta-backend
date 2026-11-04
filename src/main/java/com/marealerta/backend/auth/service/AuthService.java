@@ -72,6 +72,7 @@ public class AuthService {
                 .expiraEm(jwtService.getTempoExp() / 1000)
                 .estabelecimentoId(estab.getId())
                 .email(user.getEmail())
+                .role(user.getRole().name())
                 .build();
     }
 
@@ -102,6 +103,7 @@ public class AuthService {
                     .expiraEm(jwtService.getTempoExp() / 1000)
                     .estabelecimentoId(estabId)
                     .email(user.getEmail())
+                    .role(user.getRole().name())
                     .build();
 
         } catch (BadCredentialsException e) {
@@ -134,6 +136,7 @@ public class AuthService {
                 .expiraEm(jwtService.getTempoExp() / 1000)
                 .estabelecimentoId(estabId)
                 .email(user.getEmail())
+                .role(user.getRole().name())
                 .build();
     }
 }

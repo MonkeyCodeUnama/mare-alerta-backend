@@ -1,12 +1,10 @@
 spring:
   application:
     name: backend
-  profiles:
-    active: dev
 jwt:
-  expiration: ${JWT_EXPIRATION:9000000}
+  expiration: ${JWT_EXPIRATION:900000}
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
-  key: ${JWT_KEY:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
+  key: ${JWT_KEY}
 app:
   uploads:
     ocorrencias-dir: /app/uploads/ocorrencias
@@ -19,8 +17,8 @@ security:
 
 whatsapp:
   evolution:
-    url: ${WHATSAPP_API_URL:http://localhost:8081}
-    api-key: ${WHATSAPP_API_KEY:marealerta_secret_key_2026}
+    url: ${WHATSAPP_API_URL}
+    api-key: ${WHATSAPP_API_KEY}
     instancia: ${WHATSAPP_INSTANCIA:marealerta_belem}
 
 ia:
