@@ -16,6 +16,8 @@ public interface ItemChecklistRepository extends JpaRepository<ItemChecklist, Lo
 
     List<ItemChecklist> findByEstabelecimentoIdAndPrioridadeOrderByOrdemAsc(Long estabelecimentoId, PrioridadeChecklist prioridade);
 
+    long countByEstabelecimentoId(Long estabelecimentoId);
+
     long countByEstabelecimentoIdAndStatus(Long estabelecimentoId, StatusChecklist status);
 
     boolean existsByEstabelecimentoIdAndTitulo(Long estabelecimentoId, String titulo);

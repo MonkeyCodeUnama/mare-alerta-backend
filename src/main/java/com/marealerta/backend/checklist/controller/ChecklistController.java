@@ -1,5 +1,6 @@
 package com.marealerta.backend.checklist.controller;
 
+import com.marealerta.backend.checklist.dto.ChecklistResumoDTO;
 import com.marealerta.backend.checklist.dto.ItemChecklistRequest;
 import com.marealerta.backend.checklist.dto.ItemChecklistResponse;
 import com.marealerta.backend.checklist.model.StatusChecklist;
@@ -54,6 +55,19 @@ public class ChecklistController {
         }
         List<ItemChecklistResponse> itens = checklistService.listar(idFinal, statusChecklist);
         return ResponseEntity.ok(itens);
+    }
+
+    @Operation(summary = "Obter resumo estatístico de progresso do checklist")
+    @GetMapping("/resumo")
+    public ResponseEntity<ChecklistResumoDTO> obterResumo(
+            @AuthenticationPrincipal Usuario usuario,
+            @RequestParam(required = false) Long estabelecimentoId) {
+        Long idFinal = estabelecimentoId;
+        if (idFinal == null && usuario != null && usuario.getEstabelecimento() != null) {
+            idFinal = usuario.getEstabelecimento().getId();
+        }
+        ChecklistResumoDTO resumo = checklistService.obterResumo(idFinal);
+        return ResponseEntity.ok(resumo);
     }
 
     @Operation(summary = "Buscar item de checklist por ID")

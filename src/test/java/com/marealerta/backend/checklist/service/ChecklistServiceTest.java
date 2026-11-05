@@ -11,6 +11,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.marealerta.backend.checklist.dto.ChecklistResumoDTO;
 import com.marealerta.backend.checklist.dto.ItemChecklistRequest;
 import com.marealerta.backend.checklist.dto.ItemChecklistResponse;
 import com.marealerta.backend.checklist.model.ItemChecklist;
@@ -173,6 +174,47 @@ class ChecklistServiceTest {
         ItemChecklistResponse response = checklistService.marcarComoConcluido(10L);
 
         assertThat(response.getStatus()).isEqualTo(StatusChecklist.CONCLUIDO);
+    }
+
+    @Test
+    @DisplayName("Deve obter resumo estatístico de progresso do checklist")
+    void deveObterResumoComProgressoCalculado() {
+        when(itemChecklistRepository.countByEstabelecimentoId(1L)).thenReturn(5L);
+        when(itemChecklistRepository.countByEstabelecimentoIdAndStatus(1L, StatusChecklist.CONCLUIDO)).thenReturn(3L);
+
+        ChecklistResumoDTO resumo = checklistService.obterResumo(1L);
+
+        assertThat(resumo).isNotNull();
+        assertThat(resumo.getTotalItens()).isEqualTo(5L);
+        assertThat(resumo.getConcluidos()).isEqualTo(3L);
+        assertThat(resumo.getPendentes()).isEqualTo(2L);
+        assertThat(resumo.getPercentualConcluido()).isEqualTo(60);
+        assertThat(resumo.getProgressoFormatado()).isEqualTo("60%");
+        assertThat(resumo.isProntoParaInundacao()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Deve indicar prontoParaInundacao verdadeiro quando 100% dos itens estiverem concluidos")
+    void deveIndicarProntoQuandoTodosConcluidos() {
+        when(itemChecklistRepository.countByEstabelecimentoId(1L)).thenReturn(4L);
+        when(itemChecklistRepository.countByEstabelecimentoIdAndStatus(1L, StatusChecklist.CONCLUIDO)).thenReturn(4L);
+
+        ChecklistResumoDTO resumo = checklistService.obterResumo(1L);
+
+        assertThat(resumo.getPercentualConcluido()).isEqualTo(100);
+        assertThat(resumo.getProgressoFormatado()).isEqualTo("100%");
+        assertThat(resumo.isProntoParaInundacao()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Deve retornar resumo zerado quando estabelecimentoId for nulo")
+    void deveRetornarResumoZeradoQuandoIdNulo() {
+        ChecklistResumoDTO resumo = checklistService.obterResumo(null);
+
+        assertThat(resumo.getTotalItens()).isEqualTo(0L);
+        assertThat(resumo.getPercentualConcluido()).isEqualTo(0);
+        assertThat(resumo.getProgressoFormatado()).isEqualTo("0%");
+        assertThat(resumo.isProntoParaInundacao()).isFalse();
     }
 
     @Test

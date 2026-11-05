@@ -1,5 +1,6 @@
 package com.marealerta.backend.checklist.service;
 
+import com.marealerta.backend.checklist.dto.ChecklistResumoDTO;
 import com.marealerta.backend.checklist.dto.ItemChecklistRequest;
 import com.marealerta.backend.checklist.dto.ItemChecklistResponse;
 import com.marealerta.backend.checklist.model.ItemChecklist;
@@ -132,6 +133,37 @@ public class ChecklistService {
         item.setStatus(StatusChecklist.CONCLUIDO);
         item = itemChecklistRepository.save(item);
         return ItemChecklistResponse.fromEntity(item);
+    }
+
+    @Transactional(readOnly = true)
+    public ChecklistResumoDTO obterResumo(Long estabelecimentoId) {
+        if (estabelecimentoId == null) {
+            return ChecklistResumoDTO.builder()
+                    .totalItens(0)
+                    .concluidos(0)
+                    .pendentes(0)
+                    .percentualConcluido(0)
+                    .progressoFormatado("0%")
+                    .prontoParaInundacao(false)
+                    .build();
+        }
+
+        long total = itemChecklistRepository.countByEstabelecimentoId(estabelecimentoId);
+        long concluidos = itemChecklistRepository.countByEstabelecimentoIdAndStatus(estabelecimentoId, StatusChecklist.CONCLUIDO);
+        long pendentes = Math.max(0, total - concluidos);
+
+        int percentual = total > 0 ? (int) Math.round(((double) concluidos / total) * 100) : 0;
+        String formatado = percentual + "%";
+        boolean pronto = total > 0 && concluidos == total;
+
+        return ChecklistResumoDTO.builder()
+                .totalItens(total)
+                .concluidos(concluidos)
+                .pendentes(pendentes)
+                .percentualConcluido(percentual)
+                .progressoFormatado(formatado)
+                .prontoParaInundacao(pronto)
+                .build();
     }
 
     @Transactional
