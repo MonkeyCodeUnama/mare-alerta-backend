@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,9 +18,11 @@ import com.marealerta.backend.alerta.dto.AlertaRequest;
 import com.marealerta.backend.alerta.dto.AlertaResponse;
 import com.marealerta.backend.alerta.model.EnvioAlertaWhatsapp;
 import com.marealerta.backend.alerta.service.AlertaService;
+import com.marealerta.backend.usuario.model.Usuario;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -43,10 +46,19 @@ public class AlertaController {
     }
 
     @Operation(summary = "Criar alerta", description = "Registra um alerta para um estabelecimento e despacha notificação via WhatsApp se houver telefone.")
+    @SecurityRequirement(name = "bearerAuth")
     @ApiResponse(responseCode = "201", description = "Alerta criado com sucesso")
     @PostMapping
-    public ResponseEntity<AlertaResponse> criar(@Valid @RequestBody AlertaRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(alertaService.criarAlerta(request));
+    public ResponseEntity<AlertaResponse> criar(
+            @AuthenticationPrincipal Usuario usuario,
+            @Valid @RequestBody AlertaRequest request) {
+        AlertaResponse response;
+        if (usuario != null && usuario.getEstabelecimento() != null) {
+            response = alertaService.criar(usuario, request);
+        } else {
+            response = alertaService.criarAlerta(request);
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @Operation(summary = "Disparar alertas por bairro", description = "Emite alerta para todos os estabelecimentos de um bairro e notifica via WhatsApp.")

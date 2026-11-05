@@ -20,5 +20,6 @@ public class TokenResponse {
     private Long expiraEm;
     private Long estabelecimentoId;
     private String email;
+    private String role;
 
 }

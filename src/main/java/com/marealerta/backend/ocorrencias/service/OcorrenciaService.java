@@ -12,11 +12,16 @@ import com.marealerta.backend.ocorrencias.repository.OcorrenciaFotoRepository;
 import com.marealerta.backend.ocorrencias.repository.OcorrenciaRepository;
 import com.marealerta.backend.usuario.model.Usuario;
 import jakarta.persistence.EntityNotFoundException;
-import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -32,7 +37,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class OcorrenciaService {
 
-    @Value("${app.uploads.ocorrencias-dir:uploads/ocorrencias}")
+    @Value("${app.uploads.ocorrencias-dir:/app/uploads/ocorrencias}")
     private String ocorrenciaDir;
     private final OcorrenciaRepository oRepository;
     private final OcorrenciaFotoRepository ofRepository;
@@ -77,6 +82,11 @@ public class OcorrenciaService {
         ocorrencia = oRepository.save(ocorrencia);
 
         return OcorrenciaResponse.fromEntity(ocorrencia);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OcorrenciaResponse> listar(Usuario usuario) {
+        return listarPorUsuario(usuario, null);
     }
 
     @Transactional(readOnly = true)
@@ -138,7 +148,7 @@ public class OcorrenciaService {
         }
 
         String nomeArquivo = arquivo.getOriginalFilename();
-        String nomeFoto = UUID.randomUUID().toString() + "-" + (nomeArquivo != null ? nomeArquivo : "foto.jpg");
+        String nomeFoto = UUID.randomUUID().toString() + "-" + Paths.get(nomeArquivo != null ? nomeArquivo : "foto.jpg").getFileName();
 
         Files.createDirectories(Paths.get(ocorrenciaDir));
 
@@ -163,5 +173,37 @@ public class OcorrenciaService {
         foto = ofRepository.save(foto);
 
         return OcorrenciaFotoResponse.fromEntity(foto);
+    }
+
+    public ResponseEntity<Resource> baixarFoto(Usuario usuario, Long ocorrenciaId, Long fotoId) throws IOException {
+        if (usuario == null || usuario.getEstabelecimento() == null || usuario.getEstabelecimento().getId() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "usuario nao autenticado ou sem estabelecimento");
+        }
+
+        Ocorrencia ocorrencia = oRepository.findById(ocorrenciaId)
+                .orElseThrow(() -> new EntityNotFoundException("ocorrencia nao encontrada"));
+        if (!Objects.equals(ocorrencia.getEstabelecimento().getId(), usuario.getEstabelecimento().getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "usuario nao autorizado a acessar esta ocorrencia");
+        }
+
+        OcorrenciaFoto foto = ofRepository.findById(fotoId)
+                .filter(item -> Objects.equals(item.getOcorrencia().getId(), ocorrenciaId))
+                .orElseThrow(() -> new EntityNotFoundException("foto nao encontrada"));
+        Resource resource = new FileSystemResource(Paths.get(ocorrenciaDir, foto.getUrlFoto().substring(foto.getUrlFoto().lastIndexOf('/') + 1)));
+        if (!resource.exists() || !resource.isReadable()) {
+            throw new EntityNotFoundException("arquivo da foto nao encontrado");
+        }
+
+        MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        if (foto.getContentType() != null) {
+            try {
+                mediaType = MediaType.parseMediaType(foto.getContentType());
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + foto.getNomeArquivo() + "\"")
+                .body(resource);
     }
 }

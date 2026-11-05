@@ -9,6 +9,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import jakarta.persistence.EntityNotFoundException;
+import org.springframework.web.server.ResponseStatusException;
+import com.marealerta.backend.risco.service.ExternalRiskServiceException;
 
 import java.time.Instant;
 
@@ -37,6 +40,22 @@ public class ApiExceptionHandler {
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ApiError> handleInvalidCredentials(InvalidCredentialsException exception, HttpServletRequest request) {
         return error(HttpStatus.UNAUTHORIZED, "credenciais inválidas", request);
+    }
+
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<ApiError> handleNotFound(EntityNotFoundException exception, HttpServletRequest request) {
+        return error(HttpStatus.NOT_FOUND, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiError> handleStatus(ResponseStatusException exception, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.valueOf(exception.getStatusCode().value());
+        return error(status, exception.getReason() != null ? exception.getReason() : status.getReasonPhrase(), request);
+    }
+
+    @ExceptionHandler(ExternalRiskServiceException.class)
+    public ResponseEntity<ApiError> handleExternalRisk(ExternalRiskServiceException exception, HttpServletRequest request) {
+        return error(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage(), request);
     }
 
     private ResponseEntity<ApiError> error(HttpStatus status, String message, HttpServletRequest request) {

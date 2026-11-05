@@ -26,39 +26,37 @@ import java.security.Principal;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/auth")
-@Tag(name = "Autenticação", description = "Endpoints de autenticação, registro e renovação de token JWT")
+@Tag(name = "Autenticação", description = "Endpoints de login, registro e renovação de tokens JWT")
 public class AuthController {
 
     private final AuthService authService;
     private final EstabelecimentoService estabelecimentoService;
 
-    @Operation(summary = "Cadastrar um novo usuário e estabelecimento")
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "usuário criado"),
-            @ApiResponse(responseCode = "400", description = "dados inválidos"),
-            @ApiResponse(responseCode = "409", description = "e-mail já cadastrado")
-    })
-    @PostMapping("/registro")
-    public ResponseEntity<TokenResponse> cadastrar(@RequestBody @Valid RegisterRequest registerRequest) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(registerRequest));
-    }
-
-    @Operation(summary = "Login do usuário")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "autenticação realizada"),
-            @ApiResponse(responseCode = "400", description = "dados inválidos"),
-            @ApiResponse(responseCode = "401", description = "credenciais inválidas")
+    @Operation(summary = "Realizar login e obter par de tokens (Access + Refresh)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Autenticado com sucesso"),
+            @ApiResponse(responseCode = "401", description = "Credenciais inválidas")
     })
     @PostMapping("/login")
-    public ResponseEntity<TokenResponse> login(@RequestBody @Valid LoginRequest loginRequest) {
-        return ResponseEntity.ok(authService.login(loginRequest));
+    public ResponseEntity<TokenResponse> login(@RequestBody @Valid LoginRequest login) {
+        return ResponseEntity.ok(authService.login(login));
     }
 
-    @Operation(summary = "Renovar token de acesso (Refresh Token)")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "token atualizado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "dados inválidos"),
-            @ApiResponse(responseCode = "401", description = "refresh token inválido ou expirado")
+    @Operation(summary = "Cadastrar novo estabelecimento e usuário gestor")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Cadastrado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+            @ApiResponse(responseCode = "409", description = "Email ou CNPJ já em uso")
+    })
+    @PostMapping("/registro")
+    public ResponseEntity<TokenResponse> register(@RequestBody @Valid RegisterRequest register) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(register));
+    }
+
+    @Operation(summary = "Renovar Access Token a partir de um Refresh Token válido")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Novo Access Token gerado com sucesso"),
+            @ApiResponse(responseCode = "401", description = "Refresh Token inválido ou expirado")
     })
     @PostMapping("/refresh")
     public ResponseEntity<TokenResponse> refresh(@RequestBody @Valid RefreshTokenRequest refreshTokenRequest) {

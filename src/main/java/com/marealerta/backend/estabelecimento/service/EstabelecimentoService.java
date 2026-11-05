@@ -20,6 +20,8 @@ import com.marealerta.backend.usuario.model.Usuario;
 import com.marealerta.backend.usuario.repository.UsuarioRepository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +37,27 @@ public class EstabelecimentoService {
         Estabelecimento estab = estabelecimentoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Estabelecimento não encontrado com ID: " + id));
         return buildResponse(estab);
+    }
+
+    @Transactional(readOnly = true)
+    public EstabelecimentoResponse buscarPorIdDoUsuario(Usuario usuario, Long id) {
+        validarDono(usuario, id);
+        return buscarPorId(id);
+    }
+
+    @Transactional
+    public EstabelecimentoResponse atualizarDoUsuario(Usuario usuario, Long id, EstabelecimentoAtualizacaoRequest request) {
+        validarDono(usuario, id);
+        return atualizar(id, request);
+    }
+
+    private void validarDono(Usuario usuario, Long id) {
+        if (usuario == null || usuario.getEstabelecimento() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "usuário não autenticado");
+        }
+        if (!usuario.getEstabelecimento().getId().equals(id)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "sem permissão para acessar este estabelecimento");
+        }
     }
 
     @Transactional(readOnly = true)

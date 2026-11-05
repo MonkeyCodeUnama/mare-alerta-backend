@@ -9,6 +9,7 @@ import com.marealerta.backend.estabelecimento.model.Bairro;
 import com.marealerta.backend.estabelecimento.model.Estabelecimento;
 import com.marealerta.backend.estabelecimento.model.TipoNegocio;
 import com.marealerta.backend.estabelecimento.repository.EstabelecimentoRepository;
+import com.marealerta.backend.usuario.model.Role;
 import com.marealerta.backend.usuario.model.Usuario;
 import com.marealerta.backend.usuario.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -62,6 +63,7 @@ public class AuthService {
         Usuario user = new Usuario();
         user.setEmail(emailNormalizado);
         user.setSenha(passwordEncoder.encode(register.getSenha()));
+        user.setRole(Role.USER);
         user.setEstabelecimento(estab);
 
         usuarioRepository.saveAndFlush(user);
@@ -76,6 +78,7 @@ public class AuthService {
                 .expiraEm(jwtService.getTempoExp() / 1000)
                 .estabelecimentoId(estab.getId())
                 .email(user.getEmail())
+                .role(user.getRole() != null ? user.getRole().name() : Role.USER.name())
                 .build();
     }
 
@@ -100,13 +103,14 @@ public class AuthService {
             Long estabId = user.getEstabelecimento() != null ? user.getEstabelecimento().getId() : null;
 
             return TokenResponse.builder()
-                .token(token)
-                .refreshToken(refreshToken)
-                .tipo("Bearer")
-                .expiraEm(jwtService.getTempoExp() / 1000)
-                .estabelecimentoId(estabId)
-                .email(user.getEmail())
-                .build();
+                    .token(token)
+                    .refreshToken(refreshToken)
+                    .tipo("Bearer")
+                    .expiraEm(jwtService.getTempoExp() / 1000)
+                    .estabelecimentoId(estabId)
+                    .email(user.getEmail())
+                    .role(user.getRole() != null ? user.getRole().name() : Role.USER.name())
+                    .build();
 
         } catch (BadCredentialsException e) {
             throw new InvalidCredentialsException();
@@ -138,6 +142,7 @@ public class AuthService {
                 .expiraEm(jwtService.getTempoExp() / 1000)
                 .estabelecimentoId(estabId)
                 .email(user.getEmail())
+                .role(user.getRole() != null ? user.getRole().name() : Role.USER.name())
                 .build();
     }
 }

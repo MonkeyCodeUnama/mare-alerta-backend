@@ -19,7 +19,6 @@ import lombok.Setter;
 @Builder
 public class AlertaRequest {
 
-    @NotNull(message = "O ID do estabelecimento é obrigatório")
     private Long estabelecimentoId;
 
     @NotNull(message = "O nível de risco é obrigatório")

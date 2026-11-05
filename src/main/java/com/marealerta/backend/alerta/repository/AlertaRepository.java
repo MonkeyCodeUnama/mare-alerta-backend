@@ -9,6 +9,8 @@ import com.marealerta.backend.alerta.model.OrigemAlerta;
 import com.marealerta.backend.alerta.model.TipoAlerta;
 
 public interface AlertaRepository extends JpaRepository<Alerta, Long> {
+
+    List<Alerta> findAllByOrderByDataEnvioDesc();
     
     List<Alerta> findByEstabelecimentoIdOrderByDataEnvioDesc(Long estabelecimentoId);
     

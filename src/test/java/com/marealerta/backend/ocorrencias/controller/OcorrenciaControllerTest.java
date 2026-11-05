@@ -11,7 +11,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -24,6 +28,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -44,7 +49,7 @@ class OcorrenciaControllerTest {
     }
 
     @Test
-    @DisplayName("POST /ocorrencias deve retornar 201 Created com dados da ocorrência")
+    @DisplayName("POST /ocorrencias deve retornar 201 Created com dados da ocorrência salva")
     void deveRegistrarOcorrenciaComSucesso() throws Exception {
         OcorrenciaResponse response = OcorrenciaResponse.builder()
                 .id(1L)
@@ -54,17 +59,18 @@ class OcorrenciaControllerTest {
 
         when(ocorrenciaService.registrarO(any(), any(OcorrenciaRequest.class))).thenReturn(response);
 
-        String payload = """
+        String jsonPayload = """
                 {
-                  "titulo": "Alagamento Doca",
-                  "dataOcorrencia": "2026-10-08",
-                  "horaInicio": "14:00"
+                    "titulo": "Alagamento Doca",
+                    "descricao": "Agua invadiu a calcada",
+                    "dataOcorrencia": "2026-10-12",
+                    "horaInicio": "14:30:00"
                 }
                 """;
 
         mockMvc.perform(post("/ocorrencias")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(payload))
+                        .content(jsonPayload))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.protocolo").value("OC-10-1"))
@@ -141,5 +147,22 @@ class OcorrenciaControllerTest {
                 .andExpect(jsonPath("$.id").value(10L))
                 .andExpect(jsonPath("$.nomeArquivo").value("foto.jpg"))
                 .andExpect(jsonPath("$.urlFoto").value("uploads/ocorrencias/foto.jpg"));
+    }
+
+    @Test
+    @DisplayName("GET /ocorrencias/{ocorrenciaId}/fotos/{fotoId} deve retornar 200 OK com bytes da foto")
+    void deveBaixarFotoComSucesso() throws Exception {
+        byte[] conteudo = "dados-da-foto".getBytes();
+        Resource resource = new ByteArrayResource(conteudo);
+        ResponseEntity<Resource> responseEntity = ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_JPEG)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"foto.jpg\"")
+                .body(resource);
+
+        when(ocorrenciaService.baixarFoto(any(), eq(1L), eq(10L))).thenReturn(responseEntity);
+
+        mockMvc.perform(get("/ocorrencias/1/fotos/10"))
+                .andExpect(status().isOk())
+                .andExpect(content().bytes(conteudo));
     }
 }

@@ -4,8 +4,10 @@ import java.time.Instant;
 import java.util.List;
 
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.marealerta.backend.alerta.client.EvolutionApiClient;
 import com.marealerta.backend.alerta.client.EvolutionSendResponse;
@@ -22,6 +24,7 @@ import com.marealerta.backend.alerta.repository.EnvioAlertaWhatsappRepository;
 import com.marealerta.backend.estabelecimento.model.Bairro;
 import com.marealerta.backend.estabelecimento.model.Estabelecimento;
 import com.marealerta.backend.estabelecimento.repository.EstabelecimentoRepository;
+import com.marealerta.backend.usuario.model.Usuario;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,10 +41,14 @@ public class AlertaService {
 
     @Transactional(readOnly = true)
     public List<AlertaResponse> listarTodos() {
-        return alertaRepository.findAll(Sort.by(Sort.Direction.DESC, "dataEnvio"))
-                .stream()
+        return alertaRepository.findAll(Sort.by(Sort.Direction.DESC, "dataEnvio")).stream()
                 .map(AlertaResponse::fromEntity)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AlertaResponse> listar() {
+        return listarTodos();
     }
 
     @Transactional(readOnly = true)
@@ -59,10 +66,23 @@ public class AlertaService {
                 .orElseThrow(() -> new IllegalArgumentException("Alerta não encontrado com ID: " + id));
     }
 
+    @Transactional(readOnly = true)
+    public AlertaResponse buscar(Long id) {
+        return buscarPorId(id);
+    }
+
     @Transactional
-    public AlertaResponse criarAlerta(AlertaRequest request) {
-        Estabelecimento estabelecimento = estabelecimentoRepository.findById(request.getEstabelecimentoId())
-                .orElseThrow(() -> new IllegalArgumentException("Estabelecimento não encontrado com ID: " + request.getEstabelecimentoId()));
+    public AlertaResponse criar(Usuario usuario, AlertaRequest request) {
+        Estabelecimento estabelecimento = null;
+        if (usuario != null && usuario.getEstabelecimento() != null && usuario.getEstabelecimento().getId() != null) {
+            estabelecimento = estabelecimentoRepository.findById(usuario.getEstabelecimento().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Estabelecimento não encontrado"));
+        } else if (request.getEstabelecimentoId() != null) {
+            estabelecimento = estabelecimentoRepository.findById(request.getEstabelecimentoId())
+                    .orElseThrow(() -> new IllegalArgumentException("Estabelecimento não encontrado com ID: " + request.getEstabelecimentoId()));
+        } else {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "usuário não autenticado");
+        }
 
         Alerta alerta = new Alerta();
         alerta.setEstabelecimento(estabelecimento);
@@ -72,10 +92,13 @@ public class AlertaService {
         alerta.setOrigemAlerta(request.getOrigemAlerta() != null ? request.getOrigemAlerta() : OrigemAlerta.AUTOMATICO);
 
         Alerta salvo = alertaRepository.save(alerta);
-
         processarEnvioWhatsapp(salvo, estabelecimento);
-
         return AlertaResponse.fromEntity(salvo);
+    }
+
+    @Transactional
+    public AlertaResponse criarAlerta(AlertaRequest request) {
+        return criar(null, request);
     }
 
     @Transactional
