@@ -3,6 +3,7 @@ package com.marealerta.backend.risco.controller;
 import com.marealerta.backend.alerta.model.NivelRisco;
 import com.marealerta.backend.estabelecimento.model.Bairro;
 import com.marealerta.backend.estabelecimento.model.Estabelecimento;
+import com.marealerta.backend.risco.dto.BairroCatalogoDTO;
 import com.marealerta.backend.risco.dto.RiscoResponse;
 import com.marealerta.backend.risco.service.RiscoService;
 import com.marealerta.backend.usuario.model.Usuario;
@@ -25,8 +26,8 @@ import org.springframework.web.method.support.ModelAndViewContainer;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -189,5 +190,21 @@ class RiscoControllerTest {
                 .andExpect(jsonPath("$.nivelRisco").value("ALTO"))
                 .andExpect(jsonPath("$.statusCota").value("TRANSBORDAMENTO"))
                 .andExpect(jsonPath("$.alertaEmitido").value(true));
+    }
+
+    @Test
+    @DisplayName("GET /risco/bairros deve retornar catalogo completo de bairros com coordenadas e cotas")
+    void deveListarCatalogoBairros() throws Exception {
+        BairroCatalogoDTO item = BairroCatalogoDTO.fromEnum(Bairro.JURUNAS);
+        when(riscoService.listarCatalogoBairros()).thenReturn(List.of(item));
+
+        mockMvc.perform(get("/risco/bairros")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].codigo").value("JURUNAS"))
+                .andExpect(jsonPath("$[0].descricao").value("Jurunas"))
+                .andExpect(jsonPath("$[0].cotaTransbordamentoMetros").value(2.75))
+                .andExpect(jsonPath("$[0].cotaFormatada").value("2.75 m"))
+                .andExpect(jsonPath("$[0].nivelVulnerabilidade").value("CRITICO"));
     }
 }

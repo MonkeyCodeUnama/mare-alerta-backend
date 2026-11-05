@@ -2,6 +2,7 @@ package com.marealerta.backend.risco.service;
 
 import com.marealerta.backend.alerta.model.NivelRisco;
 import com.marealerta.backend.estabelecimento.model.Bairro;
+import com.marealerta.backend.risco.dto.BairroCatalogoDTO;
 import com.marealerta.backend.risco.dto.PrevisaoMlRequest;
 import com.marealerta.backend.risco.dto.PrevisaoMlResponse;
 import com.marealerta.backend.risco.dto.RiscoResponse;
@@ -22,6 +23,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 
 @Service
@@ -33,6 +36,12 @@ public class RiscoService {
     private final PrevisaoChuvaMlRepository previsaoChuvaMlRepository;
     private final TelemetriaService telemetriaService;
     private final OpenMeteoClient openMeteoClient;
+
+    public List<BairroCatalogoDTO> listarCatalogoBairros() {
+        return Arrays.stream(Bairro.values())
+                .map(BairroCatalogoDTO::fromEnum)
+                .toList();
+    }
 
     @Transactional
     public RiscoResponse processarEObterRiscoParaLocalidade(String localidade) {

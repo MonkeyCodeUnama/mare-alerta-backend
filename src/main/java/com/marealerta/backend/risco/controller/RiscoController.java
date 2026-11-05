@@ -1,5 +1,6 @@
 package com.marealerta.backend.risco.controller;
 
+import com.marealerta.backend.risco.dto.BairroCatalogoDTO;
 import com.marealerta.backend.risco.dto.RiscoResponse;
 import com.marealerta.backend.risco.service.RiscoService;
 import com.marealerta.backend.usuario.model.Usuario;
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/risco")
@@ -46,5 +49,12 @@ public class RiscoController {
 
         RiscoResponse response = riscoService.processarEObterRiscoParaLocalidade(localidadeFinal);
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Listar catálogo topográfico de bairros", description = "Retorna todos os bairros de Belém com coordenadas geográficas, cota crítica de transbordamento, bacia e vulnerabilidade.")
+    @ApiResponse(responseCode = "200", description = "Catálogo de bairros retornado com sucesso")
+    @GetMapping("/bairros")
+    public ResponseEntity<List<BairroCatalogoDTO>> listarBairros() {
+        return ResponseEntity.ok(riscoService.listarCatalogoBairros());
     }
 }

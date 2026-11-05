@@ -1,6 +1,7 @@
 package com.marealerta.backend.risco.service;
 
 import com.marealerta.backend.alerta.model.NivelRisco;
+import com.marealerta.backend.risco.dto.BairroCatalogoDTO;
 import com.marealerta.backend.risco.dto.PrevisaoMlRequest;
 import com.marealerta.backend.risco.dto.PrevisaoMlResponse;
 import com.marealerta.backend.risco.dto.RiscoResponse;
@@ -79,6 +80,17 @@ class RiscoServiceTest {
         Map<String, String> units = Map.of("temperature_2m", "°C", "precipitation", "mm");
 
         gfsSnapshotPadrao = new OpenMeteoClient.GfsFeaturesSnapshot("2026-10-22T21:00:00Z", features, units);
+    }
+
+    @Test
+    @DisplayName("Deve listar todos os 30 bairros no catalogo topografico")
+    void deveListarCatalogoBairros() {
+        List<BairroCatalogoDTO> catalogo = riscoService.listarCatalogoBairros();
+
+        assertThat(catalogo).hasSize(30);
+        assertThat(catalogo.get(0).getCodigo()).isEqualTo("CAMPINA");
+        assertThat(catalogo.get(0).getLatitude()).isNotNull();
+        assertThat(catalogo.get(0).getCotaFormatada()).isEqualTo("2.80 m");
     }
 
     @Test
