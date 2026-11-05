@@ -91,7 +91,7 @@ src/main/java/com/marealerta/backend/
 | **`itens`** | Concluído (V7) | Concluído | 100% funcional. `ItemCriticoService` e `ItemCriticoController` com suporte a rotas `/itemcritico` e `/itens-criticos`, cadastro com validação, listagem vazia resiliente (`200 OK`) e aliases JSON para integração SPA. |
 | **`checklist`** | Concluído (V12) | Concluído | 100% funcional. `ChecklistService` e `ChecklistController` com suporte a `/checklists`, `/checklists/registrar` e `/checklists/listar`, criação, atualização e listagem de itens preventivos por estabelecimento com prioridades (`ALTA`, `MEDIA`, `BAIXA`), e testes automatizados dedicados. |
 | **`alerta`** | Concluído (V4, V20) | Concluído | 100% funcional. `AlertaService`, `AlertaController` e `EvolutionApiClient` conectados à Evolution API v2 para emissão individual e broadcast por bairro. Sanitização e formatação E.164 (`55919XXXXXXXX`), registro e rastreio de auditoria em `envios_alerta_whatsapp` com enums de status e controle de tentativas. |
-| **`risco` (ML)** | Concluído (V19, Entidade, Repo, DTOs) | Concluído | 100% funcional. Integrado ao microserviço FastAPI (`weather-model`), consumindo 20 variáveis atmosféricas reais em UTC via Open-Meteo GFS Global, tratamento de `window_end` e fallback gracioso (`DEGRADADO`) em caso de indisponibilidade da IA. |
+| **`risco` (ML)** | Concluído (V19, Entidade, Repo, DTOs) | Concluído | 100% funcional. Integrado à API FastAPI separada (`mare-alerta-ia`), consumindo 20 variáveis atmosféricas reais em UTC via Open-Meteo GFS Global, tratamento de `window_end` e fallback gracioso (`DEGRADADO`) em caso de indisponibilidade da IA. |
 
 ---
 
@@ -295,21 +295,24 @@ Para proteção contra força bruta em credenciais, scraping e sobrecarga da inf
 
 ### Inicialização Rápida:
 ```bash
-# 1. Iniciar PostgreSQL, Evolution API e Microserviço de IA (weather-model)
-docker compose up -d postgres evolution_api weather-model
+# 1. Iniciar PostgreSQL e Evolution API
+docker compose up -d postgres evolution_api
 
-# 2. Compilar e Rodar Testes
+# 2. Apontar o backend para a API separada da IA
+export IA_CHUVA_URL=https://ia.seu-dominio.com/v1/predict
+
+# 3. Compilar e Rodar Testes
 ./gradlew test
 
-# 3. Executar o Backend
+# 4. Executar o Backend
 ./gradlew bootRun
 ```
 
 - **Swagger UI (Backend):** `http://localhost:8080/swagger-ui/index.html`
 - **OpenAPI JSON (Backend):** `http://localhost:8080/v3/api-docs`
 - **Painel Evolution API (WhatsApp):** `http://localhost:8081/manager`
-- **Documentação FastAPI (IA - weather-model):** `http://localhost:8000/docs`
-- **Healthcheck da IA:** `http://localhost:8000/health`
+- **Documentação FastAPI (IA separada):** `https://ia.seu-dominio.com/docs`
+- **Healthcheck da IA:** `https://ia.seu-dominio.com/health`
 
 ---
 
@@ -318,8 +321,8 @@ docker compose up -d postgres evolution_api weather-model
 | Data | Autor | Resumo das Mudanças | Impacto |
 | :--- | :--- | :--- | :--- |
 | **29/10/2026** | AKIRA-NZR | Sincronização e robustecimento para o Frontend: correção do módulo `itens` (`ItemCriticoService`, `ItemCriticoController`, `ItemCriticoRequest`, `ItemCriticoResponse`) com retorno resiliente de lista vazia (`200 OK`), aliases JSON e suporte a rotas plurais (`/itens-criticos`); disponibilização estática de imagens de sinistro via `WebConfig` (`/uploads/ocorrencias/**`) liberada no `SecurityConfig`; implementação de endpoints de consulta em `OcorrenciaController` (`GET /ocorrencias`, `GET /ocorrencias/{id}`, `GET /ocorrencias/protocolo/{p}`); adição de `GET /auth/me` e alias `/estabelecimentos`; aprimoramento de CORS e bypass de preflight `OPTIONS` no `RateLimitFilter`; e expansão da suíte para **131 testes automatizados** com 100% de sucesso e zero comentários no código. | Prontidão total para integração entre Frontend (SPA) e Backend, com todas as rotas operacionais, histórico de ocorrências acessível e imagens servidas com segurança. |
-| **12/10/2026** | AKIRA-NZR | Orquestração Docker autocontida em `docker/weather-model` e eliminação total de dados simulados: incorporação dos arquivos de runtime do `weather-model` diretamente no repositório; adição de `weather-model` com `condition: service_healthy` no `depends_on` do serviço `app` no `docker-compose.yml`; integração da **Open-Meteo Marine API** (`sea_level_height_msl`) para cota real de maré, cálculo dinâmico de tendência e horário de preamar; ingestão em tempo real de todas as **20 variáveis atmosféricas do modelo GFS Global** para o `RiscoService`; remoção de heurísticas e fallbacks artificiais; limpeza do módulo `itens` (`ItemCriticoController`, `ItemCriticoService`); e expansão da suíte para **115 testes automatizados** com 100% de sucesso. | Portabilidade imediata no clone sem repositórios externos, dados marinhos e meteorológicos 100% reais em produção e cobertura abrangente de testes automatizados. |
-| **12/10/2026** | AKIRA-NZR | Conclusão da Etapa 3: integração do microserviço `mare-alerta-ia` (`weather-model`) via Docker Compose com `python:3.13-slim`, mapeamento seguro de porta `127.0.0.1:8000:8000`, montagem somente leitura de artefatos (`model_bundle.joblib`), healthcheck HTTP nativo em `/health` e comunicação direta entre contêineres (`http://weather-model:8000/v1/predict`). | Inferência de Machine Learning operando em contêiner dedicado e desacoplado, com observabilidade de integridade e tolerância a falhas. |
+| **12/10/2026** | AKIRA-NZR | Integração da previsão de chuva e eliminação total de dados simulados; integração da **Open-Meteo Marine API** (`sea_level_height_msl`) para cota real de maré, cálculo dinâmico de tendência e horário de preamar; ingestão em tempo real de todas as **20 variáveis atmosféricas do modelo GFS Global** para o `RiscoService`; remoção de heurísticas e fallbacks artificiais; limpeza do módulo `itens` (`ItemCriticoController`, `ItemCriticoService`); e expansão da suíte para **115 testes automatizados** com 100% de sucesso. | Portabilidade imediata no clone sem repositórios externos, dados marinhos e meteorológicos 100% reais em produção e cobertura abrangente de testes automatizados. |
+| **12/10/2026** | AKIRA-NZR | Conclusão da Etapa 3: integração do microserviço `mare-alerta-ia` como serviço de inferência dedicado, com healthcheck HTTP nativo em `/health` e consumo pelo backend via `IA_CHUVA_URL`. | Inferência de Machine Learning operando em serviço desacoplado, com observabilidade de integridade e tolerância a falhas. |
 | **12/10/2026** | AKIRA-NZR | Conclusão da Etapa 2 da telemetria: expansão do `OpenMeteoClient` para 10 variáveis atmosféricas superficiais em tempo real com anotação `@JsonIgnoreProperties(ignoreUnknown = true)`, exposição de endpoints `/telemetria/grafico`, `/telemetria/sincronizar` e `/telemetria/historico`, testes unitários atualizados em `OpenMeteoClientTest`, `TelemetriaControllerTest` e `TelemetriaServiceTest`, e smoke test real validado contra a API Open-Meteo para Belém (-1.4558, -48.5044). | Alimentação fidedigna em tempo real do dashboard e do modelo de IA de chuva, cobertura total de endpoints e tolerância a novos atributos da API meteorológica. |
 | **12/10/2026** | AKIRA-NZR | Execução das migrações Flyway `V21` a `V24`: limpeza de colunas legadas em `ocorrencias` (`data_inicio`, `data_fim`), expurgo de índices redundantes e adição de índices compostos (`idx_ocorrencias_status_data`, `idx_checklist_estab_ordem`). Endurecimento do PostgreSQL com constraints `CHECK` para todos os enums do sistema e valores numéricos não negativos (`V22`). Suporte a comércios informais sem CNPJ (`documento` opcional). Adição de multi-fonte na telemetria com coluna `fonte` (`OPEN_METEO`, `TABUA_MARE`) e chave única idempotente (`V23`). Normalização e índice funcional case-insensitive `LOWER(email)` (`V24`). Expansão da suíte de testes unitários com criação de `EstabelecimentoServiceTest`, `EstabelecimentoControllerTest`, `UserDetailsServiceImplTest`, `OpenMeteoClientTest` e `MlApiClienteTest`. | Consistência relacional estrita, prevenção contra dados órfãos ou inconsistentes, suporte a trabalhadores informais e 100% de cobertura de testes unitários em todos os módulos. |
 | **10/10/2026** | AKIRA-NZR | Sincronização e integração do módulo `checklist` (`ChecklistService`, `ChecklistController`, 11 testes automatizados). Implementação de segurança avançada com JWT Refresh Token (`POST /auth/refresh`), separação estrita de claims `ACCESS` vs `REFRESH`, verificação de usuários ativos e estabelecimentos não-deletados no login. Implementação de Rate Limiting por IP via Bucket4j 8 e Caffeine (`RateLimitFilter` retornando HTTP 429 e `Retry-After`). Hardening de CORS configurável via `CORS_ALLOWED_ORIGINS`. Correção de syntax de `@Value` e rotas na Evolution API e RestClient. Padronização de injeção `@RequiredArgsConstructor`, remoção de wildcard imports e limpeza de comentários em código. Atualização do `.env.example` e documentação viva. | Camada de segurança e autenticação robusta, proteção contra ataques de força bruta, prevenção de vazamento de tokens e alinhamento completo com o módulo preventivo de checklist. |
