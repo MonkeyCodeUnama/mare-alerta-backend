@@ -25,6 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -134,6 +135,56 @@ class ChecklistControllerTest {
                         .content(json))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CONCLUIDO"));
+    }
+
+    @Test
+    @DisplayName("PATCH /checklists/{id}/toggle deve alternar status do item")
+    void deveAlternarStatusItem() throws Exception {
+        ItemChecklistResponse response = ItemChecklistResponse.builder()
+                .id(5L)
+                .titulo("Elevar freezers")
+                .status(StatusChecklist.CONCLUIDO)
+                .build();
+
+        when(checklistService.alternarStatus(5L)).thenReturn(response);
+
+        mockMvc.perform(patch("/checklists/5/toggle").accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(5L))
+                .andExpect(jsonPath("$.status").value("CONCLUIDO"));
+    }
+
+    @Test
+    @DisplayName("PATCH /checklists/{id}/concluir deve marcar item como concluido")
+    void deveConcluirItem() throws Exception {
+        ItemChecklistResponse response = ItemChecklistResponse.builder()
+                .id(5L)
+                .titulo("Elevar freezers")
+                .status(StatusChecklist.CONCLUIDO)
+                .build();
+
+        when(checklistService.marcarComoConcluido(5L)).thenReturn(response);
+
+        mockMvc.perform(patch("/checklists/5/concluir").accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONCLUIDO"));
+    }
+
+    @Test
+    @DisplayName("POST /checklists/gerar-padrao deve gerar lista padrao para o estabelecimento")
+    void deveGerarChecklistPadrao() throws Exception {
+        ItemChecklistResponse response = ItemChecklistResponse.builder()
+                .id(1L)
+                .titulo("Elevar freezers e refrigeradores")
+                .build();
+
+        when(checklistService.gerarItensPadrao(10L)).thenReturn(List.of(response));
+
+        mockMvc.perform(post("/checklists/gerar-padrao")
+                        .param("estabelecimentoId", "10")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$[0].titulo").value("Elevar freezers e refrigeradores"));
     }
 
     @Test

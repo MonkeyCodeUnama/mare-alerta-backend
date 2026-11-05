@@ -4,6 +4,7 @@ import com.marealerta.backend.auth.dto.LoginRequest;
 import com.marealerta.backend.auth.dto.RefreshTokenRequest;
 import com.marealerta.backend.auth.dto.RegisterRequest;
 import com.marealerta.backend.auth.dto.TokenResponse;
+import com.marealerta.backend.checklist.service.ChecklistService;
 import com.marealerta.backend.estabelecimento.model.Bairro;
 import com.marealerta.backend.estabelecimento.model.Estabelecimento;
 import com.marealerta.backend.estabelecimento.model.TipoNegocio;
@@ -28,6 +29,7 @@ public class AuthService {
     private final EstabelecimentoRepository estabelecimentoRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final ChecklistService checklistService;
 
     @Transactional
     public TokenResponse register(RegisterRequest register) {
@@ -54,6 +56,8 @@ public class AuthService {
                 .build();
 
         estabelecimentoRepository.save(estab);
+
+        checklistService.gerarItensPadraoParaEstabelecimento(estab);
 
         Usuario user = new Usuario();
         user.setEmail(emailNormalizado);
@@ -96,13 +100,13 @@ public class AuthService {
             Long estabId = user.getEstabelecimento() != null ? user.getEstabelecimento().getId() : null;
 
             return TokenResponse.builder()
-                    .token(token)
-                    .refreshToken(refreshToken)
-                    .tipo("Bearer")
-                    .expiraEm(jwtService.getTempoExp() / 1000)
-                    .estabelecimentoId(estabId)
-                    .email(user.getEmail())
-                    .build();
+                .token(token)
+                .refreshToken(refreshToken)
+                .tipo("Bearer")
+                .expiraEm(jwtService.getTempoExp() / 1000)
+                .estabelecimentoId(estabId)
+                .email(user.getEmail())
+                .build();
 
         } catch (BadCredentialsException e) {
             throw new InvalidCredentialsException();

@@ -21,7 +21,12 @@ public class RiscoResponse {
     private String bairro;
     private NivelRisco nivelRisco;
     private Double probabilidadeChuva;
+    private Integer probabilidadePercentual;
+    private String probabilidadeFormatada;
     private BigDecimal nivelMarePrevistoMetros;
+    private String cotaFormatada;
+    private Double cotaTransbordamentoMetros;
+    private String statusCota;
     private String descricaoCenario;
     private LocalDateTime horarioPicoPrevisto;
     private Boolean alertaEmitido;

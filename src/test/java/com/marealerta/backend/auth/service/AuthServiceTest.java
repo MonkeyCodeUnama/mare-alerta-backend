@@ -4,6 +4,7 @@ import com.marealerta.backend.auth.dto.LoginRequest;
 import com.marealerta.backend.auth.dto.RefreshTokenRequest;
 import com.marealerta.backend.auth.dto.RegisterRequest;
 import com.marealerta.backend.auth.dto.TokenResponse;
+import com.marealerta.backend.checklist.service.ChecklistService;
 import com.marealerta.backend.estabelecimento.dto.EstabelecimentoRequest;
 import com.marealerta.backend.estabelecimento.model.Bairro;
 import com.marealerta.backend.estabelecimento.model.Estabelecimento;
@@ -48,6 +49,9 @@ class AuthServiceTest {
 
     @Mock
     private JwtService jwtService;
+
+    @Mock
+    private ChecklistService checklistService;
 
     @InjectMocks
     private AuthService authService;
@@ -105,6 +109,7 @@ class AuthServiceTest {
         assertThat(response.getRefreshToken()).isEqualTo("refresh-token-123");
         assertThat(response.getEmail()).isEqualTo("novo@marealerta.com");
         verify(estabelecimentoRepository).save(any(Estabelecimento.class));
+        verify(checklistService).gerarItensPadraoParaEstabelecimento(any(Estabelecimento.class));
         verify(usuarioRepository).saveAndFlush(any(Usuario.class));
     }
 

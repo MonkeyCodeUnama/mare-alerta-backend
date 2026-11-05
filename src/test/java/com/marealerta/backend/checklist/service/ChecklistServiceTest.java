@@ -18,11 +18,14 @@ import com.marealerta.backend.checklist.model.PrioridadeChecklist;
 import com.marealerta.backend.checklist.model.StatusChecklist;
 import com.marealerta.backend.checklist.repository.ItemChecklistRepository;
 import com.marealerta.backend.estabelecimento.model.Estabelecimento;
+import com.marealerta.backend.estabelecimento.model.TipoNegocio;
 import com.marealerta.backend.estabelecimento.repository.EstabelecimentoRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -46,6 +49,7 @@ class ChecklistServiceTest {
         estabelecimento = Estabelecimento.builder()
                 .id(1L)
                 .nome("Mercado Central")
+                .tipoNegocio(TipoNegocio.MERCADO)
                 .ativo(true)
                 .build();
 
@@ -135,6 +139,50 @@ class ChecklistServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.getTitulo()).isEqualTo("Elevar freezers atualizado");
         assertThat(response.getStatus()).isEqualTo(StatusChecklist.CONCLUIDO);
+    }
+
+    @Test
+    @DisplayName("Deve alternar status de pendente para concluido")
+    void deveAlternarStatusParaConcluido() {
+        when(itemChecklistRepository.findById(10L)).thenReturn(Optional.of(item));
+        when(itemChecklistRepository.save(any(ItemChecklist.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ItemChecklistResponse response = checklistService.alternarStatus(10L);
+
+        assertThat(response.getStatus()).isEqualTo(StatusChecklist.CONCLUIDO);
+    }
+
+    @Test
+    @DisplayName("Deve alternar status de concluido de volta para pendente")
+    void deveAlternarStatusParaPendente() {
+        item.setStatus(StatusChecklist.CONCLUIDO);
+        when(itemChecklistRepository.findById(10L)).thenReturn(Optional.of(item));
+        when(itemChecklistRepository.save(any(ItemChecklist.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ItemChecklistResponse response = checklistService.alternarStatus(10L);
+
+        assertThat(response.getStatus()).isEqualTo(StatusChecklist.PENDENTE);
+    }
+
+    @Test
+    @DisplayName("Deve marcar item como concluido")
+    void deveMarcarComoConcluido() {
+        when(itemChecklistRepository.findById(10L)).thenReturn(Optional.of(item));
+        when(itemChecklistRepository.save(any(ItemChecklist.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ItemChecklistResponse response = checklistService.marcarComoConcluido(10L);
+
+        assertThat(response.getStatus()).isEqualTo(StatusChecklist.CONCLUIDO);
+    }
+
+    @Test
+    @DisplayName("Deve gerar itens padrao para estabelecimento de mercado")
+    void deveGerarItensPadraoMercado() {
+        when(itemChecklistRepository.existsByEstabelecimentoIdAndTitulo(eq(1L), any())).thenReturn(false);
+
+        checklistService.gerarItensPadraoParaEstabelecimento(estabelecimento);
+
+        verify(itemChecklistRepository, atLeastOnce()).save(any(ItemChecklist.class));
     }
 
     @Test

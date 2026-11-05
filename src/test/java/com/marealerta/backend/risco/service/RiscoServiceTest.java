@@ -22,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -113,7 +114,10 @@ class RiscoServiceTest {
         assertThat(response.getNivelRisco()).isEqualTo(NivelRisco.ALTO);
         assertThat(response.getAlertaEmitido()).isTrue();
         assertThat(response.getProbabilidadeChuva()).isEqualTo(0.65);
+        assertThat(response.getProbabilidadePercentual()).isEqualTo(65);
+        assertThat(response.getProbabilidadeFormatada()).isEqualTo("65%");
         assertThat(response.getNivelMarePrevistoMetros()).isEqualByComparingTo(BigDecimal.valueOf(3.10));
+        assertThat(response.getCotaFormatada()).isEqualTo("3.10 m");
         assertThat(response.getDescricaoCenario()).contains("ALERTA CRÍTICO");
         assertThat(response.getHorarioPicoPrevisto()).isNotNull();
 
@@ -201,6 +205,64 @@ class RiscoServiceTest {
         assertThat(response.getNivelRisco()).isEqualTo(NivelRisco.BAIXO);
         assertThat(response.getAlertaEmitido()).isFalse();
         assertThat(response.getDescricaoCenario()).contains("Condições normais");
+    }
+
+    @Test
+    @DisplayName("Deve diferenciar risco de inundação por bairro conforme cota topográfica")
+    void deveDiferenciarRiscoPorBairroETopografia() {
+        TelemetriaDashboardResponse telemetriaMareAlta = TelemetriaDashboardResponse.builder()
+                .estacaoCodigo("BELEM-CENTRO")
+                .nivelAtual(BigDecimal.valueOf(2.80))
+                .build();
+
+        PrevisaoMlResponse mlResponse = PrevisaoMlResponse.builder()
+                .rainProbability(0.15)
+                .rainExpected(false)
+                .build();
+
+        when(telemetriaService.obterDashboard()).thenReturn(telemetriaMareAlta);
+        when(openMeteoClient.buscarFeaturesGfsAtuais(anyDouble(), anyDouble())).thenReturn(gfsSnapshotPadrao);
+        when(mlApiClient.solicitarPrevisao(any(PrevisaoMlRequest.class))).thenReturn(mlResponse);
+
+        RiscoResponse responseCidadeVelha = riscoService.processarEObterRiscoParaLocalidade("Cidade Velha");
+        assertThat(responseCidadeVelha.getNivelRisco()).isEqualTo(NivelRisco.ALTO);
+        assertThat(responseCidadeVelha.getStatusCota()).isEqualTo("TRANSBORDAMENTO");
+        assertThat(responseCidadeVelha.getCotaTransbordamentoMetros()).isEqualTo(2.70);
+
+        RiscoResponse responseMarco = riscoService.processarEObterRiscoParaLocalidade("Marco");
+        assertThat(responseMarco.getNivelRisco()).isEqualTo(NivelRisco.BAIXO);
+        assertThat(responseMarco.getStatusCota()).isEqualTo("NORMAL");
+        assertThat(responseMarco.getCotaTransbordamentoMetros()).isEqualTo(12.00);
+    }
+
+    @Test
+    @DisplayName("Deve calibrar probabilidade de chuva com ensemble de previsão da Open-Meteo")
+    void deveCalibrarProbabilidadeComEnsembleOpenMeteo() {
+        OpenMeteoClient.HourlyData hourly = new OpenMeteoClient.HourlyData(
+                List.of("2026-11-05T15:00"),
+                List.of(BigDecimal.ZERO),
+                List.of(BigDecimal.valueOf(10)),
+                List.of(BigDecimal.valueOf(30)),
+                List.of(BigDecimal.valueOf(10)),
+                List.of(BigDecimal.valueOf(90))
+        );
+        OpenMeteoClient.OpenMeteoResponse openMeteoResponse = new OpenMeteoClient.OpenMeteoResponse(null, hourly);
+
+        PrevisaoMlResponse mlResponse = PrevisaoMlResponse.builder()
+                .rainProbability(0.40)
+                .rainExpected(false)
+                .build();
+
+        when(telemetriaService.obterDashboard()).thenReturn(telemetriaPadrao);
+        when(openMeteoClient.buscarFeaturesGfsAtuais(anyDouble(), anyDouble())).thenReturn(gfsSnapshotPadrao);
+        when(openMeteoClient.buscarDadosAtuaisEPrevisao(anyDouble(), anyDouble())).thenReturn(openMeteoResponse);
+        when(mlApiClient.solicitarPrevisao(any(PrevisaoMlRequest.class))).thenReturn(mlResponse);
+
+        RiscoResponse response = riscoService.processarEObterRiscoParaLocalidade("MARCO");
+
+        assertThat(response.getProbabilidadeChuva()).isEqualTo(0.19);
+        assertThat(response.getProbabilidadePercentual()).isEqualTo(19);
+        assertThat(response.getProbabilidadeFormatada()).isEqualTo("19%");
     }
 
     @Test

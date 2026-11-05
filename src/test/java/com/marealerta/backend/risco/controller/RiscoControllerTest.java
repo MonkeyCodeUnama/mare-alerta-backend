@@ -45,7 +45,12 @@ class RiscoControllerTest {
                 .bairro("BELEM_CENTRO")
                 .nivelRisco(NivelRisco.MEDIO)
                 .probabilidadeChuva(0.45)
+                .probabilidadePercentual(45)
+                .probabilidadeFormatada("45%")
                 .nivelMarePrevistoMetros(BigDecimal.valueOf(2.50))
+                .cotaFormatada("2.50 m")
+                .cotaTransbordamentoMetros(2.80)
+                .statusCota("ALERTA")
                 .descricaoCenario("ATENÇÃO: Risco moderado.")
                 .horarioPicoPrevisto(LocalDateTime.now().plusHours(1))
                 .alertaEmitido(false)
@@ -60,6 +65,10 @@ class RiscoControllerTest {
                 .andExpect(jsonPath("$.bairro").value("BELEM_CENTRO"))
                 .andExpect(jsonPath("$.nivelRisco").value("MEDIO"))
                 .andExpect(jsonPath("$.probabilidadeChuva").value(0.45))
+                .andExpect(jsonPath("$.probabilidadePercentual").value(45))
+                .andExpect(jsonPath("$.probabilidadeFormatada").value("45%"))
+                .andExpect(jsonPath("$.cotaFormatada").value("2.50 m"))
+                .andExpect(jsonPath("$.statusCota").value("ALERTA"))
                 .andExpect(jsonPath("$.alertaEmitido").value(false));
     }
 
@@ -70,7 +79,12 @@ class RiscoControllerTest {
                 .bairro("BELEM_CENTRO")
                 .nivelRisco(NivelRisco.BAIXO)
                 .probabilidadeChuva(0.10)
+                .probabilidadePercentual(10)
+                .probabilidadeFormatada("10%")
                 .nivelMarePrevistoMetros(BigDecimal.valueOf(2.00))
+                .cotaFormatada("2.00 m")
+                .cotaTransbordamentoMetros(2.80)
+                .statusCota("NORMAL")
                 .descricaoCenario("Condições normais.")
                 .horarioPicoPrevisto(LocalDateTime.now().plusHours(1))
                 .alertaEmitido(false)
@@ -82,7 +96,8 @@ class RiscoControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bairro").value("BELEM_CENTRO"))
-                .andExpect(jsonPath("$.nivelRisco").value("BAIXO"));
+                .andExpect(jsonPath("$.nivelRisco").value("BAIXO"))
+                .andExpect(jsonPath("$.probabilidadeFormatada").value("10%"));
     }
 
     @Test
@@ -92,7 +107,12 @@ class RiscoControllerTest {
                 .bairro("CIDADE_VELHA")
                 .nivelRisco(NivelRisco.ALTO)
                 .probabilidadeChuva(0.85)
+                .probabilidadePercentual(85)
+                .probabilidadeFormatada("85%")
                 .nivelMarePrevistoMetros(BigDecimal.valueOf(3.20))
+                .cotaFormatada("3.20 m")
+                .cotaTransbordamentoMetros(2.70)
+                .statusCota("TRANSBORDAMENTO")
                 .descricaoCenario("ALERTA CRÍTICO: Risco iminente de alagamento.")
                 .horarioPicoPrevisto(LocalDateTime.now().plusHours(1))
                 .alertaEmitido(true)
@@ -106,6 +126,7 @@ class RiscoControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bairro").value("CIDADE_VELHA"))
                 .andExpect(jsonPath("$.nivelRisco").value("ALTO"))
+                .andExpect(jsonPath("$.statusCota").value("TRANSBORDAMENTO"))
                 .andExpect(jsonPath("$.alertaEmitido").value(true));
     }
 }

@@ -30,11 +30,18 @@ public class OpenMeteoClient {
     private final RestTemplate restTemplate;
 
     public OpenMeteoResponse buscarDadosAtuaisEPrevisao() {
+        return buscarDadosAtuaisEPrevisao(LATITUDE_BELEM, LONGITUDE_BELEM);
+    }
+
+    public OpenMeteoResponse buscarDadosAtuaisEPrevisao(Double latitude, Double longitude) {
+        double lat = latitude != null ? latitude : LATITUDE_BELEM;
+        double lon = longitude != null ? longitude : LONGITUDE_BELEM;
+
         String url = UriComponentsBuilder.fromUriString(OPEN_METEO_URL)
-                .queryParam("latitude", LATITUDE_BELEM)
-                .queryParam("longitude", LONGITUDE_BELEM)
+                .queryParam("latitude", lat)
+                .queryParam("longitude", lon)
                 .queryParam("current", "precipitation,temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,pressure_msl,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m")
-                .queryParam("hourly", "precipitation,temperature_2m,wind_speed_10m,wind_direction_10m")
+                .queryParam("hourly", "precipitation,precipitation_probability,temperature_2m,wind_speed_10m,wind_direction_10m")
                 .queryParam("timezone", "America/Belem")
                 .toUriString();
 
@@ -177,10 +184,21 @@ public class OpenMeteoClient {
     public record HourlyData(
             List<String> time,
             @JsonProperty("precipitation") List<BigDecimal> precipitacao,
+            @JsonProperty("precipitation_probability") List<BigDecimal> probabilidadePrecipitacao,
             @JsonProperty("temperature_2m") List<BigDecimal> temperatura,
             @JsonProperty("wind_speed_10m") List<BigDecimal> ventoVelocidade,
             @JsonProperty("wind_direction_10m") List<BigDecimal> ventoDirecao
-    ) {}
+    ) {
+        public HourlyData(
+                List<String> time,
+                List<BigDecimal> precipitacao,
+                List<BigDecimal> temperatura,
+                List<BigDecimal> ventoVelocidade,
+                List<BigDecimal> ventoDirecao
+        ) {
+            this(time, precipitacao, null, temperatura, ventoVelocidade, ventoDirecao);
+        }
+    }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record OpenMeteoMarineResponse(

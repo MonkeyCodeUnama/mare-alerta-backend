@@ -70,8 +70,8 @@ def validate_location(latitude, longitude):
     longitude = numeric_or_null(longitude, "longitude")
     if not np.isfinite(latitude) or not np.isfinite(longitude):
         raise ValueError("Coordenadas obrigatórias")
-    if abs(latitude - (-1.4558)) > 0.01 or abs(longitude - (-48.5044)) > 0.01:
-        raise ValueError("Modelo restrito ao ponto de referência de Belém")
+    if not (-1.70 <= latitude <= -1.00) or not (-48.70 <= longitude <= -48.20):
+        raise ValueError("Modelo restrito à Região Metropolitana de Belém")
 
 
 def load_dataset(path):
@@ -149,7 +149,6 @@ def make_features(frame, config):
 
 
 class RainPredictor:
-    """Usa o mesmo código de limpeza/features do notebook; não consulta API externa."""
     def __init__(self, artifact_dir):
         root = Path(artifact_dir)
         metadata = json.loads((root / "metadata.json").read_text(encoding="utf-8"))
@@ -183,7 +182,6 @@ class RainPredictor:
                 raise ValueError(f"Unidade incompatível: {name}")
             row[name] = numeric_or_null(values[name], name)
         frame, invalid = clean_frame(pd.DataFrame([row], index=pd.DatetimeIndex([time])))
-        # As colunas excluídas não entram nas features nem precisam estar na requisição.
         missing = float(frame[names].isna().mean(axis=1).iloc[0])
         if missing > config["max_row_missing_fraction"]:
             raise ValueError("Dados insuficientes para inferência")
