@@ -12,12 +12,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
@@ -98,6 +100,16 @@ public class TelemetriaService {
                             return repository.findTop1ByOrderByDataHoraDesc().orElseThrow();
                         }));
 
+        if (ultimaLeitura.getDataHora() != null && ultimaLeitura.getDataHora().isBefore(LocalDateTime.now().minusMinutes(30))) {
+            try {
+                sincronizarOpenMeteo();
+                ultimaLeitura = repository.findTop1ByEstacaoCodigoAndTipoRegistroOrderByDataHoraDesc(
+                                ESTACAO_BELEM_CODIGO, TipoRegistroTelemetria.OBSERVADO)
+                        .orElse(ultimaLeitura);
+            } catch (Exception ignored) {
+            }
+        }
+
         List<LeituraTelemetria> proximasPrevisoes = repository.findByTipoRegistroAndDataHoraBetweenOrderByDataHoraAsc(
                 TipoRegistroTelemetria.PREVISAO, ultimaLeitura.getDataHora(), ultimaLeitura.getDataHora().plusHours(3));
 
@@ -120,17 +132,38 @@ public class TelemetriaService {
                 .map(LeituraTelemetria::getDataHora)
                 .orElse(ultimaLeitura.getDataHora());
 
+        BigDecimal nivelArredondado = ultimaLeitura.getNivelMare() != null
+                ? ultimaLeitura.getNivelMare().setScale(2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+        BigDecimal chuvaArredondada = ultimaLeitura.getPrecipitacao() != null
+                ? ultimaLeitura.getPrecipitacao().setScale(1, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+        BigDecimal tempArredondada = ultimaLeitura.getTemperatura() != null
+                ? ultimaLeitura.getTemperatura().setScale(1, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+        BigDecimal ventoArredondado = ultimaLeitura.getVentoVelocidade() != null
+                ? ultimaLeitura.getVentoVelocidade().setScale(1, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        DateTimeFormatter horaFormatter = DateTimeFormatter.ofPattern("HH:mm");
+        String preamarFormatado = preamarHorario != null ? preamarHorario.format(horaFormatter) : null;
+
         return TelemetriaDashboardResponse.builder()
                 .estacaoCodigo(ultimaLeitura.getEstacaoCodigo())
                 .estacaoNome(ultimaLeitura.getEstacaoNome())
-                .nivelAtual(ultimaLeitura.getNivelMare())
+                .nivelAtual(nivelArredondado)
+                .nivelFormatado(String.format(Locale.US, "%.2f m", nivelArredondado.doubleValue()))
                 .tendencia(tendencia)
                 .preamarHorario(preamarHorario)
-                .chuvaAtual(ultimaLeitura.getPrecipitacao())
-                .temperatura(ultimaLeitura.getTemperatura())
-                .ventoVelocidade(ultimaLeitura.getVentoVelocidade())
+                .preamarHorarioFormatado(preamarFormatado)
+                .chuvaAtual(chuvaArredondada)
+                .chuvaFormatada(String.format(Locale.US, "%.1f mm/h", chuvaArredondada.doubleValue()))
+                .temperatura(tempArredondada)
+                .temperaturaFormatada(String.format(Locale.US, "%.1f °C", tempArredondada.doubleValue()))
+                .ventoVelocidade(ventoArredondado)
+                .ventoFormatado(String.format(Locale.US, "%.1f km/h", ventoArredondado.doubleValue()))
                 .ventoDirecao(ultimaLeitura.getVentoDirecao())
-                .nivelRisco(calcularNivelRisco(ultimaLeitura.getNivelMare(), ultimaLeitura.getPrecipitacao()))
+                .nivelRisco(calcularNivelRisco(nivelArredondado, chuvaArredondada))
                 .dataHora(ultimaLeitura.getDataHora())
                 .unidadeNivel("m")
                 .unidadeChuva("mm/h")
@@ -154,10 +187,10 @@ public class TelemetriaService {
                         .time(l.getDataHora().format(formatter))
                         .hour(l.getDataHora().getHour())
                         .dataHora(l.getDataHora())
-                        .level(l.getNivelMare())
-                        .rain(l.getPrecipitacao())
-                        .temperature(l.getTemperatura())
-                        .wind(l.getVentoVelocidade())
+                        .level(l.getNivelMare() != null ? l.getNivelMare().setScale(2, RoundingMode.HALF_UP) : null)
+                        .rain(l.getPrecipitacao() != null ? l.getPrecipitacao().setScale(1, RoundingMode.HALF_UP) : null)
+                        .temperature(l.getTemperatura() != null ? l.getTemperatura().setScale(1, RoundingMode.HALF_UP) : null)
+                        .wind(l.getVentoVelocidade() != null ? l.getVentoVelocidade().setScale(1, RoundingMode.HALF_UP) : null)
                         .tipoRegistro(l.getTipoRegistro() != null ? l.getTipoRegistro().name() : "OBSERVADO")
                         .build())
                 .toList();

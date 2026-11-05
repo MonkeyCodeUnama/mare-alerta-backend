@@ -162,7 +162,7 @@ class TelemetriaServiceTest {
     }
 
     @Test
-    @DisplayName("Deve retornar dados consolidados do dashboard com tendencia e preamar dinamicos")
+    @DisplayName("Deve retornar dados consolidados do dashboard com tendencia, preamar e campos formatados")
     void deveRetornarDashboardComSucesso() {
         LocalDateTime agora = LocalDateTime.now();
         leituraBase.setDataHora(agora);
@@ -194,10 +194,35 @@ class TelemetriaServiceTest {
         assertThat(dashboard).isNotNull();
         assertThat(dashboard.getEstacaoCodigo()).isEqualTo("BELEM-CENTRO");
         assertThat(dashboard.getNivelAtual()).isEqualByComparingTo(BigDecimal.valueOf(2.40));
+        assertThat(dashboard.getNivelFormatado()).isEqualTo("2.40 m");
         assertThat(dashboard.getChuvaAtual()).isEqualByComparingTo(BigDecimal.valueOf(5.0));
+        assertThat(dashboard.getChuvaFormatada()).isEqualTo("5.0 mm/h");
+        assertThat(dashboard.getTemperaturaFormatada()).isEqualTo("28.5 °C");
+        assertThat(dashboard.getVentoFormatado()).isEqualTo("14.0 km/h");
         assertThat(dashboard.getNivelRisco()).isEqualTo("BAIXO");
         assertThat(dashboard.getTendencia()).isEqualTo("SUBINDO");
         assertThat(dashboard.getPreamarHorario()).isEqualTo(agora.plusHours(3));
+        assertThat(dashboard.getPreamarHorarioFormatado()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Deve resincronizar automaticamente quando leitura do dashboard tiver mais de 30 minutos")
+    void deveResincronizarQuandoLeituraExpirada() {
+        LocalDateTime antiga = LocalDateTime.now().minusMinutes(45);
+        leituraBase.setDataHora(antiga);
+
+        when(repository.findTop1ByEstacaoCodigoAndTipoRegistroOrderByDataHoraDesc(
+                "BELEM-CENTRO", TipoRegistroTelemetria.OBSERVADO))
+                .thenReturn(Optional.of(leituraBase));
+
+        when(repository.findByTipoRegistroAndDataHoraBetweenOrderByDataHoraAsc(
+                eq(TipoRegistroTelemetria.PREVISAO), any(), any()))
+                .thenReturn(List.of());
+
+        TelemetriaDashboardResponse dashboard = telemetriaService.obterDashboard();
+
+        assertThat(dashboard).isNotNull();
+        verify(openMeteoClient).buscarDadosAtuaisEPrevisao();
     }
 
     @Test

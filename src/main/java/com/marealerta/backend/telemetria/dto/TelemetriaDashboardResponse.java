@@ -19,11 +19,16 @@ public class TelemetriaDashboardResponse {
     private String estacaoCodigo;
     private String estacaoNome;
     private BigDecimal nivelAtual;
+    private String nivelFormatado;
     private String tendencia;
     private LocalDateTime preamarHorario;
+    private String preamarHorarioFormatado;
     private BigDecimal chuvaAtual;
+    private String chuvaFormatada;
     private BigDecimal temperatura;
+    private String temperaturaFormatada;
     private BigDecimal ventoVelocidade;
+    private String ventoFormatado;
     private BigDecimal ventoDirecao;
     private String nivelRisco;
     private LocalDateTime dataHora;
