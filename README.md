@@ -37,7 +37,7 @@ O **Maré Alerta** resolve esse problema transformando dados em prevenção ativ
 | **Backend** | Java 21 LTS + Spring Boot 4.1.1 | API RESTful, injeção de dependências e regras de negócio |
 | **Build & Testes** | Gradle 9.7 (Kotlin DSL) + JUnit 5 | 131 testes automatizados (unitários, mocks e controllers) |
 | **Banco de Dados** | PostgreSQL 16 + Flyway | 24 migrações ativas, modelagem 3FN e constraints estritas |
-| **Inteligência Artificial** | Python 3.13 + FastAPI + Scikit-learn | Microserviço preditivo (`weather-model`) rodando modelo SGD |
+| **Inteligência Artificial** | Python 3.13 + FastAPI + Scikit-learn | API preditiva separada (`mare-alerta-ia`) rodando modelo SGD |
 | **Telemetria & Clima** | Open-Meteo (Marine & GFS Global) | Nível do mar (`sea_level_height_msl`) e 20 features atmosféricas em UTC |
 | **Mensageria** | Evolution API v2 (WhatsApp Baileys) | Gateway de mensagens com suporte a QR Code e multi-instâncias |
 | **Segurança** | Spring Security + JWT + Bucket4j | Tokens Stateless (Access + Refresh Token) e Rate Limit por IP |
@@ -108,8 +108,11 @@ Ideal para programar e debugar o código Java com reinicialização rápida:
 
 1. **Inicie a infraestrutura de apoio:**
    ```bash
-   docker compose up -d postgres weather-model evolution_api
+   docker compose up -d postgres evolution_api
    ```
+
+   > Defina `IA_CHUVA_URL` para a API separada da IA (`mare-alerta-ia`), por exemplo:
+   > `IA_CHUVA_URL=https://ia.seu-dominio.com/v1/predict`
 
 2. **Execute o backend via Gradle:**
    ```bash
@@ -177,7 +180,6 @@ curl -X POST http://localhost:8080/auth/login \
 ```text
 mare-alerta-backend/
 ├── docker/
-│   └── weather-model/        # Runtime autocontido da IA (FastAPI, Scikit-learn, joblib)
 ├── docs/
 │   ├── GUIA_BACKEND.md       # Guia vivo de arquitetura e histórico de atualizações
 │   └── IA_PREVISAO_CHUVA...  # Especificação técnica do modelo meteorológico

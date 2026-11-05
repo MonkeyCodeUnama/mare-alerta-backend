@@ -2,9 +2,10 @@
 
 ## Integração do serviço de inferência
 
-- Endpoint padrão: `https://ma-ai.andr3dav1d.dev/v1/predict`; configure outro endereço em `IA_CHUVA_URL` quando necessário.
+- Endpoint padrão deve ser informado por `IA_CHUVA_URL`; use a URL pública da API separada da IA quando necessário.
+- A API de inferência fica no repositório separado `mare-alerta-ia`; o backend não deve manter uma cópia do runtime Python.
 - A consulta Open-Meteo deve solicitar as 20 features brutas obrigatórias do modelo, em UTC, com unidades `celsius`, `kmh` e `mm`, e selecionar a amostra da hora UTC corrente.
-- Envie `latitude: -1.4558` e `longitude: -48.5044`, `schema_version: rain-hourly-v1`, `horizon_hours: 1`, features e unidades com os nomes retornados pelo Open-Meteo. `feature_time` precisa ser timezone-aware e alinhado à hora.
+- Envie `schema_version: rain-hourly-v1`, `horizon_hours: 1`, features e unidades com os nomes retornados pelo Open-Meteo. `feature_time` precisa ser timezone-aware e alinhado à hora.
 - O serviço devolve `window_end` para o instante alvo, que o backend mapeia ao campo interno `target_time`.
 - `GET /health` verifica a disponibilidade do modelo; falhas ou respostas incompatíveis de inferência devem ser expostas ao cliente como serviço indisponível.
 

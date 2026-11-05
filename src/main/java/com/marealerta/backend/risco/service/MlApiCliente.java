@@ -28,7 +28,7 @@ public class MlApiCliente {
     @Autowired
     public MlApiCliente(
             ObjectMapper objectMapper,
-            @Value("${ia.chuva.url:${IA_CHUVA_URL:http://weather-model:8000/v1/predict}}") String mlApiUrl,
+            @Value("${ia.chuva.url:${IA_CHUVA_URL:http://localhost:8000/v1/predict}}") String mlApiUrl,
             @Value("${IA_CHUVA_API_KEY:}") String mlApiKey
     ) {
         this.objectMapper = objectMapper;

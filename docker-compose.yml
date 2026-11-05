@@ -50,30 +50,6 @@ services:
     volumes:
       - evolution_instances:/evolution/instances
 
-  weather-model:
-    build:
-      context: ${IA_BUILD_CONTEXT:-./docker/weather-model}
-      dockerfile: Dockerfile
-    container_name: marealerta_ia
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:8000:8000"
-    environment:
-      IA_API_KEY: ${IA_CHUVA_API_KEY:-}
-    volumes:
-      - ${IA_BUILD_CONTEXT:-./docker/weather-model}/artifacts:/app/artifacts:ro
-    deploy:
-      resources:
-        limits:
-          memory: 384M
-        reservations:
-          memory: 128M
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   app:
     build:
       context: .
@@ -81,8 +57,6 @@ services:
     container_name: marealerta_app
     depends_on:
       postgres:
-        condition: service_healthy
-      weather-model:
         condition: service_healthy
     ports:
       - "8080:8080"
@@ -99,8 +73,8 @@ services:
       WHATSAPP_API_URL: http://evolution_api:8080
       WHATSAPP_API_KEY: ${EVOLUTION_API_KEY:-marealerta_secret_key_2026}
       WHATSAPP_INSTANCIA: marealerta_belem
-      IA_CHUVA_URL: http://weather-model:8000/v1/predict
-      IA_CHUVA_API_KEY: ${IA_CHUVA_API_KEY:-}
+      IA_CHUVA_URL: ${IA_CHUVA_URL:-http://host.docker.internal:8000/v1/predict}
+      IA_CHUVA_API_KEY: ${IA_CHUVA_API_KEY:-local-dev-key}
 
 volumes:
   marealerta_pg_data:
