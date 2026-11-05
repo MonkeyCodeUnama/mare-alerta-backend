@@ -85,8 +85,18 @@ public class RiscoService {
             telemetria = telemetriaService.obterDashboard();
         }
 
-        PrevisaoMlResponse responseMl = mlApiClient.solicitarPrevisao(request);
-        StatusQualidadeMl statusQualidade = (responseMl.getQualityStatus() != null) ? responseMl.getQualityStatus() : StatusQualidadeMl.OK;
+        PrevisaoMlResponse responseMl;
+        StatusQualidadeMl statusQualidade;
+
+        try {
+            responseMl = mlApiClient.solicitarPrevisao(request);
+            statusQualidade = (responseMl.getQualityStatus() != null) ? responseMl.getQualityStatus() : StatusQualidadeMl.OK;
+        } catch (Exception ex) {
+            log.warn("Servico de Machine Learning indisponivel ou retornou erro. Acionando fallback heuristico: {}", ex.getMessage());
+            responseMl = criarPrevisaoFallback(telemetria);
+            statusQualidade = StatusQualidadeMl.DEGRADADO;
+        }
+
 
         String estacao = (localidade != null && !localidade.isBlank()) ? localidade : "BELEM_CENTRO";
         Instant instanteEmissao = responseMl.getIssuedAt() != null ? responseMl.getIssuedAt() : Instant.now();
@@ -221,5 +231,33 @@ public class RiscoService {
                     mare, prob);
         }
         return "Condições normais. Sem risco significativo de alagamento.";
+    }
+
+    private PrevisaoMlResponse criarPrevisaoFallback(TelemetriaDashboardResponse telemetria) {
+        BigDecimal chuva = (telemetria != null && telemetria.getChuvaAtual() != null) ? telemetria.getChuvaAtual() : BigDecimal.ZERO;
+        double chuvaVal = chuva.doubleValue();
+
+        double prob;
+        if (chuvaVal >= 20.0) {
+            prob = 0.85;
+        } else if (chuvaVal > 0.0) {
+            prob = 0.50;
+        } else {
+            prob = 0.15;
+        }
+
+        Instant agora = Instant.now();
+        Instant alvo = agora.plus(1, ChronoUnit.HOURS);
+
+        return PrevisaoMlResponse.builder()
+                .modelVersion("fallback-heuristic-v1")
+                .issuedAt(agora)
+                .targetTime(alvo)
+                .horizonHours(1)
+                .rainProbability(prob)
+                .rainExpected(prob >= 0.50)
+                .expectedPrecipitationMm(chuva)
+                .qualityStatus(StatusQualidadeMl.DEGRADADO)
+                .build();
     }
 }

@@ -278,18 +278,23 @@ class RiscoServiceTest {
     }
 
     @Test
-    @DisplayName("Deve propagar excecao quando servico de ML falhar sem criar dados mockados")
-    void devePropagarExcecaoQuandoMlFalhar() {
+    @DisplayName("Deve acionar fallback com status DEGRADADO quando servico de ML falhar ou retornar erro")
+    void deveAcionarFallbackQuandoMlFalhar() {
         when(telemetriaService.obterDashboard()).thenReturn(telemetriaPadrao);
         when(openMeteoClient.buscarFeaturesGfsAtuais(anyDouble(), anyDouble())).thenReturn(gfsSnapshotPadrao);
         when(mlApiClient.solicitarPrevisao(any(PrevisaoMlRequest.class)))
-                .thenThrow(new RuntimeException("Connection refused - FastAPI offline"));
+                .thenThrow(new RuntimeException("FastAPI retornou erro HTTP 422"));
 
-        assertThatThrownBy(() -> riscoService.processarEObterRiscoParaLocalidade("BELEM_CENTRO"))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Connection refused");
+        RiscoResponse response = riscoService.processarEObterRiscoParaLocalidade("BELEM_CENTRO");
+        assertThat(response).isNotNull();
+        assertThat(response.getNivelRisco()).isNotNull();
 
-        verify(previsaoChuvaMlRepository, never()).save(any());
+
+        ArgumentCaptor<PrevisaoChuvaMl> captor = ArgumentCaptor.forClass(PrevisaoChuvaMl.class);
+        verify(previsaoChuvaMlRepository).save(captor.capture());
+        PrevisaoChuvaMl salva = captor.getValue();
+        assertThat(salva.getStatusQualidade()).isEqualTo(StatusQualidadeMl.DEGRADADO);
+        assertThat(salva.getVersaoModelo()).isEqualTo("fallback-heuristic-v1");
     }
 
     @Test
