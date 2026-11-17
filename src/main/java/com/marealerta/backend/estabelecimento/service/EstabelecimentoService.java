@@ -8,10 +8,12 @@ import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.marealerta.backend.checklist.service.ChecklistService;
 import com.marealerta.backend.estabelecimento.dto.EstabelecimentoAtualizacaoRequest;
 import com.marealerta.backend.estabelecimento.dto.EstabelecimentoResponse;
 import com.marealerta.backend.estabelecimento.model.Estabelecimento;
 import com.marealerta.backend.estabelecimento.model.EstabelecimentoHorario;
+import com.marealerta.backend.estabelecimento.model.TipoNegocio;
 import com.marealerta.backend.estabelecimento.repository.EstabelecimentoHorarioRepository;
 import com.marealerta.backend.estabelecimento.repository.EstabelecimentoRepository;
 import com.marealerta.backend.itens.model.ItemCritico;
@@ -31,6 +33,7 @@ public class EstabelecimentoService {
     private final UsuarioRepository usuarioRepository;
     private final EstabelecimentoHorarioRepository estabelecimentoHorarioRepository;
     private final ItensCriticosRepository itensCriticosRepository;
+    private final ChecklistService checklistService;
 
     @Transactional(readOnly = true)
     public EstabelecimentoResponse buscarPorId(Long id) {
@@ -118,11 +121,18 @@ public class EstabelecimentoService {
         if (request.getTelefone() != null) {
             estab.setTelefone(request.getTelefone());
         }
+        TipoNegocio tipoAnterior = estab.getTipoNegocio();
+        boolean mudouTipoNegocio = false;
         if (request.getTipoNegocio() != null) {
+            mudouTipoNegocio = request.getTipoNegocio() != tipoAnterior;
             estab.setTipoNegocio(request.getTipoNegocio());
         }
 
         estabelecimentoRepository.save(estab);
+
+        if (mudouTipoNegocio) {
+            checklistService.gerarItensPadraoParaEstabelecimento(estab);
+        }
 
         if (request.getDias() != null && !request.getDias().isEmpty()) {
             estabelecimentoHorarioRepository.deleteByEstabelecimentoId(estab.getId());

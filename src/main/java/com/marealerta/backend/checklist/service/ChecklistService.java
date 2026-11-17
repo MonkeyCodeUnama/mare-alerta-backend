@@ -15,7 +15,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -186,8 +189,29 @@ public class ChecklistService {
             return;
         }
 
-        List<ItemPadraoDef> templates = obterTemplatesPorTipo(estab.getTipoNegocio());
-        for (ItemPadraoDef def : templates) {
+        List<ItemPadraoDef> templatesAtuais = obterTemplatesPorTipo(estab.getTipoNegocio());
+        Set<String> titulosAtuais = templatesAtuais.stream()
+                .map(ItemPadraoDef::titulo)
+                .collect(Collectors.toSet());
+
+        Set<String> titulosOutrosSegmentos = new HashSet<>();
+        for (TipoNegocio tipo : TipoNegocio.values()) {
+            for (ItemPadraoDef def : obterTemplatesPorTipo(tipo)) {
+                if (!titulosAtuais.contains(def.titulo())) {
+                    titulosOutrosSegmentos.add(def.titulo());
+                }
+            }
+        }
+
+        List<ItemChecklist> existentes = itemChecklistRepository.findByEstabelecimentoIdOrderByOrdemAsc(estab.getId());
+        for (ItemChecklist item : existentes) {
+            if (item.getTitulo() != null && titulosOutrosSegmentos.contains(item.getTitulo())) {
+                itemChecklistRepository.delete(item);
+            }
+        }
+        itemChecklistRepository.flush();
+
+        for (ItemPadraoDef def : templatesAtuais) {
             if (!itemChecklistRepository.existsByEstabelecimentoIdAndTitulo(estab.getId(), def.titulo())) {
                 ItemChecklist item = ItemChecklist.builder()
                         .estabelecimento(estab)
