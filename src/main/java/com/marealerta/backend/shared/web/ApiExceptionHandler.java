@@ -22,8 +22,14 @@ public class ApiExceptionHandler {
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException exception, HttpServletRequest request) {
         String message = exception.getBindingResult().getFieldErrors().stream()
                 .findFirst()
-                .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                .orElse("requisição inválida");
+                .map(error -> {
+                    String def = error.getDefaultMessage();
+                    if (def != null && !def.isBlank()) {
+                        return Character.toUpperCase(def.charAt(0)) + def.substring(1);
+                    }
+                    return "Verifique os campos preenchidos e tente novamente.";
+                })
+                .orElse("Verifique os campos preenchidos e tente novamente.");
         return error(HttpStatus.BAD_REQUEST, message, request);
     }
 
@@ -32,14 +38,26 @@ public class ApiExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, exception.getMessage(), request);
     }
 
-    @ExceptionHandler({EmailAlreadyRegisteredException.class, DataIntegrityViolationException.class})
-    public ResponseEntity<ApiError> handleConflict(RuntimeException exception, HttpServletRequest request) {
-        return error(HttpStatus.CONFLICT, "e-mail já cadastrado", request);
+    @ExceptionHandler(EmailAlreadyRegisteredException.class)
+    public ResponseEntity<ApiError> handleEmailConflict(EmailAlreadyRegisteredException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, "Este e-mail já está cadastrado. Faça login ou utilize outro endereço.", request);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException exception, HttpServletRequest request) {
+        String raw = exception.getMostSpecificCause() != null ? exception.getMostSpecificCause().getMessage() : "";
+        if (raw != null && raw.toLowerCase().contains("email")) {
+            return error(HttpStatus.CONFLICT, "Este e-mail já está cadastrado. Faça login ou utilize outro endereço.", request);
+        }
+        if (raw != null && raw.toLowerCase().contains("documento")) {
+            return error(HttpStatus.CONFLICT, "Este CPF ou CNPJ já está vinculado a outro estabelecimento.", request);
+        }
+        return error(HttpStatus.CONFLICT, "Estes dados já estão registrados no sistema.", request);
     }
 
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ApiError> handleInvalidCredentials(InvalidCredentialsException exception, HttpServletRequest request) {
-        return error(HttpStatus.UNAUTHORIZED, "credenciais inválidas", request);
+        return error(HttpStatus.UNAUTHORIZED, "E-mail ou senha incorretos. Confira os dados e tente novamente.", request);
     }
 
     @ExceptionHandler(EntityNotFoundException.class)
