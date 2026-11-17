@@ -19,9 +19,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -61,6 +63,13 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<TokenResponse> refresh(@RequestBody @Valid RefreshTokenRequest refreshTokenRequest) {
         return ResponseEntity.ok(authService.refreshToken(refreshTokenRequest));
+    }
+
+    @Operation(summary = "Verificar disponibilidade de e-mail antes de avançar no cadastro")
+    @GetMapping("/verificar-email")
+    public ResponseEntity<Map<String, Boolean>> verificarEmail(@RequestParam("email") String email) {
+        boolean disponivel = authService.isEmailDisponivel(email);
+        return ResponseEntity.ok(Map.of("disponivel", disponivel));
     }
 
     @Operation(summary = "Obter dados do usuário autenticado")

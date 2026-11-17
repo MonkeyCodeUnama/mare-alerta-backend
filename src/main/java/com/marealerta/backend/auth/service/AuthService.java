@@ -32,6 +32,15 @@ public class AuthService {
     private final JwtService jwtService;
     private final ChecklistService checklistService;
 
+    @Transactional(readOnly = true)
+    public boolean isEmailDisponivel(String email) {
+        if (email == null || email.isBlank()) {
+            return false;
+        }
+        String emailNormalizado = email.trim().toLowerCase();
+        return !usuarioRepository.existsByEmail(emailNormalizado);
+    }
+
     @Transactional
     public TokenResponse register(RegisterRequest register) {
         String emailNormalizado = register.getEmail() != null ? register.getEmail().trim().toLowerCase() : "";
