@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -39,11 +40,15 @@ public class EvolutionApiClient {
     }
 
     public Object consultarInstancia() {
-        return chamarLista("/instance/fetchInstances?instanceName=" + instancia);
+        try {
+            return chamarLista("/instance/fetchInstances?instanceName=" + instancia);
+        } catch (HttpClientErrorException.NotFound e) {
+            return List.of();
+        }
     }
 
     public Map<String, Object> obterQrCode() {
-        return chamar("/instance/connect/" + instancia, "GET", null);
+        return conectar();
     }
 
     public Map<String, Object> conectar() {
@@ -59,12 +64,19 @@ public class EvolutionApiClient {
     }
 
     public Map<String, Object> desconectar() {
-        return chamar("/instance/logout/" + instancia, "DELETE", null);
+        try {
+            return chamar("/instance/logout/" + instancia, "DELETE", null);
+        } catch (HttpClientErrorException e) {
+            return Map.of("disconnected", true, "message", "Instância já estava desconectada.");
+        }
     }
 
     public Map<String, Object> reiniciarInstancia() {
-        desconectar();
-        return conectar();
+        try {
+            return chamar("/instance/restart/" + instancia, "POST", null);
+        } catch (HttpClientErrorException e) {
+            return conectar();
+        }
     }
 
     private Object chamarLista(String caminho) {
