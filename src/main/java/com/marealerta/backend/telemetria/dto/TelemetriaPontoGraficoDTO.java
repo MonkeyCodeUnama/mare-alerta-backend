@@ -23,6 +23,7 @@ public class TelemetriaPontoGraficoDTO {
     private BigDecimal rain;
     private BigDecimal temperature;
     private BigDecimal wind;
+    private Integer rainProbability;
     private String tipoRegistro;
 
     public Integer getHour() {

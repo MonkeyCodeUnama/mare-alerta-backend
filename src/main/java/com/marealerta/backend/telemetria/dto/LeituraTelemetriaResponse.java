@@ -28,6 +28,7 @@ public class LeituraTelemetriaResponse {
     private BigDecimal temperatura;
     private BigDecimal ventoVelocidade;
     private BigDecimal ventoDirecao;
+    private Integer probabilidadeChuva;
     private LocalDateTime dataHora;
     private LocalDateTime createdAt;
 
@@ -43,6 +44,7 @@ public class LeituraTelemetriaResponse {
                 .temperatura(l.getTemperatura())
                 .ventoVelocidade(l.getVentoVelocidade())
                 .ventoDirecao(l.getVentoDirecao())
+                .probabilidadeChuva(l.getProbabilidadeChuva())
                 .dataHora(l.getDataHora())
                 .createdAt(l.getCreatedAt())
                 .build();

@@ -23,6 +23,8 @@ public class TelemetriaDashboardResponse {
     private String tendencia;
     private LocalDateTime preamarHorario;
     private String preamarHorarioFormatado;
+    private BigDecimal preamarNivelPrevisto;
+    private Integer probabilidadeChuvaAtual;
     private BigDecimal chuvaAtual;
     private String chuvaFormatada;
     private BigDecimal temperatura;
