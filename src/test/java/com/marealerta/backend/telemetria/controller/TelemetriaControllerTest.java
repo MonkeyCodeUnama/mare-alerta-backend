@@ -86,6 +86,7 @@ class TelemetriaControllerTest {
                 .rain(BigDecimal.valueOf(10.5))
                 .temperature(BigDecimal.valueOf(29.0))
                 .wind(BigDecimal.valueOf(14.0))
+                .rainProbability(75)
                 .tipoRegistro("OBSERVADO")
                 .build();
 
@@ -97,6 +98,7 @@ class TelemetriaControllerTest {
                 .andExpect(jsonPath("$[0].time").value("12:00"))
                 .andExpect(jsonPath("$[0].level").value(2.80))
                 .andExpect(jsonPath("$[0].rain").value(10.5))
+                .andExpect(jsonPath("$[0].rainProbability").value(75))
                 .andExpect(jsonPath("$[0].tipoRegistro").value("OBSERVADO"));
     }
 

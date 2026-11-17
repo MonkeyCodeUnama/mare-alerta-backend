@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,7 +55,8 @@ class TelemetriaServiceTest {
                 .temperatura(BigDecimal.valueOf(28.5))
                 .ventoVelocidade(BigDecimal.valueOf(14.0))
                 .ventoDirecao(BigDecimal.valueOf(120.0))
-                .dataHora(LocalDateTime.now())
+                .probabilidadeChuva(65)
+                .dataHora(LocalDateTime.now(ZoneId.of("America/Belem")))
                 .build();
     }
 
@@ -97,10 +99,11 @@ class TelemetriaServiceTest {
     }
 
     @Test
-    @DisplayName("Deve sincronizar dados meteorológicos e marinhos da API Open-Meteo")
+    @DisplayName("Deve sincronizar dados meteorológicos e marinhos da API Open-Meteo com probabilidade horária")
     void deveSincronizarOpenMeteoComSucesso() {
-        String horaAtualStr = LocalDateTime.now().withMinute(0).withSecond(0).withNano(0).toString();
-        String horaProxStr = LocalDateTime.now().plusHours(1).withMinute(0).withSecond(0).withNano(0).toString();
+        ZoneId belemZone = ZoneId.of("America/Belem");
+        String horaAtualStr = LocalDateTime.now(belemZone).withMinute(0).withSecond(0).withNano(0).toString();
+        String horaProxStr = LocalDateTime.now(belemZone).plusHours(1).withMinute(0).withSecond(0).withNano(0).toString();
 
         OpenMeteoClient.CurrentUnits current = new OpenMeteoClient.CurrentUnits(
                 horaAtualStr,
@@ -117,19 +120,20 @@ class TelemetriaServiceTest {
         );
 
         OpenMeteoClient.HourlyData hourly = new OpenMeteoClient.HourlyData(
-                List.of(horaProxStr),
-                List.of(BigDecimal.valueOf(2.0)),
-                List.of(BigDecimal.valueOf(29.0)),
-                List.of(BigDecimal.valueOf(15.0)),
-                List.of(BigDecimal.valueOf(75.0))
+                List.of(horaAtualStr, horaProxStr),
+                List.of(BigDecimal.valueOf(1.0), BigDecimal.valueOf(2.0)),
+                List.of(BigDecimal.valueOf(72), BigDecimal.valueOf(88)),
+                List.of(BigDecimal.valueOf(29.0), BigDecimal.valueOf(28.5)),
+                List.of(BigDecimal.valueOf(15.0), BigDecimal.valueOf(16.0)),
+                List.of(BigDecimal.valueOf(75.0), BigDecimal.valueOf(80.0))
         );
 
         OpenMeteoClient.OpenMeteoResponse apiResponse = new OpenMeteoClient.OpenMeteoResponse(current, hourly);
 
         OpenMeteoClient.MarineCurrent marineCurrent = new OpenMeteoClient.MarineCurrent(horaAtualStr, BigDecimal.valueOf(2.15));
         OpenMeteoClient.MarineHourly marineHourly = new OpenMeteoClient.MarineHourly(
-                List.of(horaProxStr),
-                List.of(BigDecimal.valueOf(2.45))
+                List.of(horaAtualStr, horaProxStr),
+                List.of(BigDecimal.valueOf(2.15), BigDecimal.valueOf(2.45))
         );
         OpenMeteoClient.OpenMeteoMarineResponse marineResponse = new OpenMeteoClient.OpenMeteoMarineResponse(marineCurrent, marineHourly);
 
@@ -145,6 +149,7 @@ class TelemetriaServiceTest {
         assertThat(response.getNivelMare()).isEqualByComparingTo(BigDecimal.valueOf(2.15));
         assertThat(response.getPrecipitacao()).isEqualByComparingTo(BigDecimal.valueOf(12.0));
         assertThat(response.getTemperatura()).isEqualByComparingTo(BigDecimal.valueOf(30.0));
+        assertThat(response.getProbabilidadeChuva()).isEqualTo(72);
         verify(repository).save(any(LeituraTelemetria.class));
         verify(repository).saveAll(anyList());
     }
@@ -203,12 +208,14 @@ class TelemetriaServiceTest {
         assertThat(dashboard.getTendencia()).isEqualTo("SUBINDO");
         assertThat(dashboard.getPreamarHorario()).isEqualTo(agora.plusHours(3));
         assertThat(dashboard.getPreamarHorarioFormatado()).isNotNull();
+        assertThat(dashboard.getPreamarNivelPrevisto()).isEqualByComparingTo(BigDecimal.valueOf(3.10));
+        assertThat(dashboard.getProbabilidadeChuvaAtual()).isEqualTo(65);
     }
 
     @Test
     @DisplayName("Deve resincronizar automaticamente quando leitura do dashboard tiver mais de 30 minutos")
     void deveResincronizarQuandoLeituraExpirada() {
-        LocalDateTime antiga = LocalDateTime.now().minusMinutes(45);
+        LocalDateTime antiga = LocalDateTime.now(ZoneId.of("America/Belem")).minusMinutes(45);
         leituraBase.setDataHora(antiga);
 
         when(repository.findTop1ByEstacaoCodigoAndTipoRegistroOrderByDataHoraDesc(
@@ -263,6 +270,7 @@ class TelemetriaServiceTest {
 
         assertThat(pontos).hasSize(1);
         assertThat(pontos.get(0).getLevel()).isEqualByComparingTo(BigDecimal.valueOf(2.40));
+        assertThat(pontos.get(0).getRainProbability()).isEqualTo(65);
         assertThat(pontos.get(0).getTime()).isNotNull();
     }
 
