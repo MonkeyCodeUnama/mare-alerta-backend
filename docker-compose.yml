@@ -76,7 +76,6 @@ services:
       WHATSAPP_INSTANCIA: marealerta_belem
       IA_CHUVA_URL: ${IA_CHUVA_URL:-http://host.docker.internal:8000/v1/predict}
       IA_CHUVA_API_KEY: ${IA_CHUVA_API_KEY:-local-dev-key}
-      ADMIN_SEED_ENABLED: ${ADMIN_SEED_ENABLED:-false}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
 

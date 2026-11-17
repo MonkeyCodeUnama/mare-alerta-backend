@@ -25,9 +25,6 @@ public class AdminBootstrapRunner implements ApplicationRunner {
     private final EstabelecimentoRepository estabelecimentoRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${app.admin.seed-enabled:false}")
-    private boolean seedEnabled;
-
     @Value("${app.admin.email:}")
     private String adminEmail;
 
@@ -37,7 +34,7 @@ public class AdminBootstrapRunner implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (!seedEnabled || adminEmail == null || adminEmail.isBlank() || adminPassword == null || adminPassword.isBlank()) {
+        if (adminEmail == null || adminEmail.isBlank() || adminPassword == null || adminPassword.isBlank()) {
             return;
         }
 
