@@ -37,7 +37,12 @@ public class ChecklistController {
 
     @Operation(summary = "Criar item de checklist para o estabelecimento")
     @PostMapping({"", "/registrar"})
-    public ResponseEntity<ItemChecklistResponse> registrar(@Valid @RequestBody ItemChecklistRequest itemChecklistRequest) {
+    public ResponseEntity<ItemChecklistResponse> registrar(
+            @AuthenticationPrincipal Usuario usuario,
+            @Valid @RequestBody ItemChecklistRequest itemChecklistRequest) {
+        if (itemChecklistRequest.getEstabelecimentoId() == null && usuario != null && usuario.getEstabelecimento() != null) {
+            itemChecklistRequest.setEstabelecimentoId(usuario.getEstabelecimento().getId());
+        }
         ItemChecklistResponse itemChecklistResponse = checklistService.criar(itemChecklistRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(itemChecklistResponse);
     }

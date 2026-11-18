@@ -21,13 +21,14 @@ import java.time.Duration;
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private final Cache<String, Bucket> buckets;
+    private final Cache<String, Bucket> authBuckets;
     private final long capacity;
     private final long refillTokens;
     private final long refillDurationSeconds;
 
     public RateLimitFilter(
-            @Value("${security.rate-limit.capacity:60}") long capacity,
-            @Value("${security.rate-limit.refill-tokens:60}") long refillTokens,
+            @Value("${security.rate-limit.capacity:180}") long capacity,
+            @Value("${security.rate-limit.refill-tokens:180}") long refillTokens,
             @Value("${security.rate-limit.refill-duration-seconds:60}") long refillDurationSeconds
     ) {
         this.capacity = capacity;
@@ -37,21 +38,32 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 .expireAfterAccess(Duration.ofMinutes(10))
                 .maximumSize(10_000)
                 .build();
+        this.authBuckets = Caffeine.newBuilder()
+                .expireAfterAccess(Duration.ofMinutes(10))
+                .maximumSize(10_000)
+                .build();
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String clientIp = resolveClientIp(request);
-        Bucket bucket = buckets.get(clientIp, key -> createNewBucket());
+        String path = request.getRequestURI();
+        boolean isAuthWrite = "POST".equalsIgnoreCase(request.getMethod())
+                && (path.equals("/auth/login") || path.equals("/auth/registro"));
+
+        Bucket bucket = isAuthWrite
+                ? authBuckets.get(clientIp, key -> createAuthBucket())
+                : buckets.get(clientIp, key -> createNewBucket());
 
         if (bucket != null && bucket.tryConsume(1)) {
             filterChain.doFilter(request, response);
         } else {
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding("UTF-8");
+            response.setContentType("application/json;charset=UTF-8");
             response.setHeader("Retry-After", String.valueOf(refillDurationSeconds));
-            response.getWriter().write("{\"status\":429,\"error\":\"Too Many Requests\",\"message\":\"Limite de requisições excedido. Tente novamente mais tarde.\"}");
+            response.getWriter().write("{\"status\":429,\"error\":\"Too Many Requests\",\"message\":\"Limite de requisições excedido. Tente novamente em instantes.\"}");
         }
     }
 
@@ -68,6 +80,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
         Bandwidth limit = Bandwidth.builder()
                 .capacity(capacity)
                 .refillGreedy(refillTokens, Duration.ofSeconds(refillDurationSeconds))
+                .build();
+        return Bucket.builder()
+                .addLimit(limit)
+                .build();
+    }
+
+    private Bucket createAuthBucket() {
+        Bandwidth limit = Bandwidth.builder()
+                .capacity(25)
+                .refillGreedy(25, Duration.ofSeconds(60))
                 .build();
         return Bucket.builder()
                 .addLimit(limit)

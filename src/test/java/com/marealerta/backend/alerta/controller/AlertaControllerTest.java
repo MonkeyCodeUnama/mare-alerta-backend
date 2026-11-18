@@ -11,9 +11,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.support.WebDataBinderFactory;
+import org.springframework.web.context.request.NativeWebRequest;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.method.support.ModelAndViewContainer;
 
 import com.marealerta.backend.alerta.dto.AlertaRequest;
 import com.marealerta.backend.alerta.dto.AlertaResponse;
@@ -24,9 +30,13 @@ import com.marealerta.backend.alerta.model.StatusEnvioWhatsapp;
 import com.marealerta.backend.alerta.model.TipoAlerta;
 import com.marealerta.backend.alerta.service.AlertaService;
 import com.marealerta.backend.estabelecimento.model.Bairro;
+import com.marealerta.backend.estabelecimento.model.Estabelecimento;
+import com.marealerta.backend.usuario.model.Role;
+import com.marealerta.backend.usuario.model.Usuario;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -43,10 +53,27 @@ class AlertaControllerTest {
     private AlertaController alertaController;
 
     private MockMvc mockMvc;
+    private Usuario usuarioAutenticado;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(alertaController).build();
+        usuarioAutenticado = null;
+        HandlerMethodArgumentResolver authResolver = new HandlerMethodArgumentResolver() {
+            @Override
+            public boolean supportsParameter(MethodParameter parameter) {
+                return parameter.hasParameterAnnotation(AuthenticationPrincipal.class);
+            }
+
+            @Override
+            public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer,
+                                          NativeWebRequest webRequest, WebDataBinderFactory binderFactory) {
+                return usuarioAutenticado;
+            }
+        };
+
+        mockMvc = MockMvcBuilders.standaloneSetup(alertaController)
+                .setCustomArgumentResolvers(authResolver)
+                .build();
     }
 
     @Test
@@ -178,5 +205,54 @@ class AlertaControllerTest {
                 .andExpect(jsonPath("$[0].id").value(1L))
                 .andExpect(jsonPath("$[0].statusEnvio").value("ENVIADO"))
                 .andExpect(jsonPath("$[0].whatsappMessageId").value("MSG-999"));
+    }
+
+    @Test
+    @DisplayName("GET /alertas deve restringir lojista aos alertas do proprio estabelecimento")
+    void deveRestringirLojistaAoProprioEstabelecimento() throws Exception {
+        Estabelecimento estab = Estabelecimento.builder().id(10L).nome("Mercado Campina").build();
+        Usuario merchant = new Usuario();
+        merchant.setRole(Role.USER);
+        merchant.setEstabelecimento(estab);
+        usuarioAutenticado = merchant;
+
+        AlertaResponse response = AlertaResponse.builder()
+                .id(7L)
+                .estabelecimentoId(10L)
+                .estabelecimentoNome("Mercado Campina")
+                .nivelRisco(NivelRisco.ALTO)
+                .mensagem("Alerta restrito")
+                .tipoAlerta(TipoAlerta.PREVENTIVO)
+                .build();
+
+        when(alertaService.listarPorEstabelecimento(10L)).thenReturn(List.of(response));
+
+        mockMvc.perform(get("/alertas?estabelecimentoId=99").accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].estabelecimentoId").value(10L));
+
+        verify(alertaService).listarPorEstabelecimento(10L);
+    }
+
+    @Test
+    @DisplayName("GET /alertas/{id} deve negar acesso de lojista a alerta de outro estabelecimento")
+    void deveNegarDetalheDeOutroEstabelecimento() throws Exception {
+        Estabelecimento estab = Estabelecimento.builder().id(10L).nome("Mercado Campina").build();
+        Usuario merchant = new Usuario();
+        merchant.setRole(Role.USER);
+        merchant.setEstabelecimento(estab);
+        usuarioAutenticado = merchant;
+
+        AlertaResponse alertaDeTerceiro = AlertaResponse.builder()
+                .id(8L)
+                .estabelecimentoId(99L)
+                .nivelRisco(NivelRisco.BAIXO)
+                .mensagem("Outro")
+                .build();
+
+        when(alertaService.buscarPorId(8L)).thenReturn(alertaDeTerceiro);
+
+        mockMvc.perform(get("/alertas/8").accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden());
     }
 }

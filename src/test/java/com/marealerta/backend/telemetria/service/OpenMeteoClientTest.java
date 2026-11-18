@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -155,5 +156,31 @@ class OpenMeteoClientTest {
         assertThatThrownBy(() -> client.buscarFeaturesGfsAtuais(null, null))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("Falha ao obter features");
+    }
+
+    @Test
+    void deveReutilizarCacheCaffeineParaMesmaArea() {
+        OpenMeteoClient.CurrentUnits current = new OpenMeteoClient.CurrentUnits(
+                "2026-10-12T12:00",
+                BigDecimal.ZERO,
+                BigDecimal.valueOf(29.0),
+                BigDecimal.valueOf(78.0),
+                BigDecimal.valueOf(24.0),
+                BigDecimal.valueOf(1012.0),
+                BigDecimal.valueOf(1013.0),
+                BigDecimal.valueOf(40.0),
+                BigDecimal.valueOf(12.0),
+                BigDecimal.valueOf(90.0),
+                BigDecimal.valueOf(18.0)
+        );
+        OpenMeteoClient.OpenMeteoResponse mockResponse = new OpenMeteoClient.OpenMeteoResponse(current, null);
+
+        when(restTemplate.getForObject(contains("latitude=-1.45"), eq(OpenMeteoClient.OpenMeteoResponse.class)))
+                .thenReturn(mockResponse);
+
+        client.buscarDadosAtuaisEPrevisao(-1.4531, -48.4998);
+        client.buscarDadosAtuaisEPrevisao(-1.4549, -48.4992);
+
+        verify(restTemplate, times(1)).getForObject(contains("latitude=-1.45"), eq(OpenMeteoClient.OpenMeteoResponse.class));
     }
 }

@@ -1,12 +1,14 @@
 package com.marealerta.backend.telemetria.service;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.springframework.stereotype.Component;
@@ -15,6 +17,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 import lombok.RequiredArgsConstructor;
 
@@ -29,6 +33,31 @@ public class OpenMeteoClient {
 
     private final RestTemplate restTemplate;
 
+    private final Cache<String, OpenMeteoResponse> weatherCache = Caffeine.newBuilder()
+            .expireAfterWrite(Duration.ofMinutes(10))
+            .maximumSize(100)
+            .build();
+
+    private final Cache<String, OpenMeteoMarineResponse> marineCache = Caffeine.newBuilder()
+            .expireAfterWrite(Duration.ofMinutes(15))
+            .maximumSize(100)
+            .build();
+
+    private final Cache<String, GfsFeaturesSnapshot> gfsCache = Caffeine.newBuilder()
+            .expireAfterWrite(Duration.ofMinutes(10))
+            .maximumSize(100)
+            .build();
+
+    private String coordKey(double lat, double lon) {
+        return String.format(Locale.US, "%.2f,%.2f", lat, lon);
+    }
+
+    public void limparCache() {
+        weatherCache.invalidateAll();
+        marineCache.invalidateAll();
+        gfsCache.invalidateAll();
+    }
+
     public OpenMeteoResponse buscarDadosAtuaisEPrevisao() {
         return buscarDadosAtuaisEPrevisao(LATITUDE_BELEM, LONGITUDE_BELEM);
     }
@@ -36,6 +65,11 @@ public class OpenMeteoClient {
     public OpenMeteoResponse buscarDadosAtuaisEPrevisao(Double latitude, Double longitude) {
         double lat = latitude != null ? latitude : LATITUDE_BELEM;
         double lon = longitude != null ? longitude : LONGITUDE_BELEM;
+        String key = coordKey(lat, lon);
+        OpenMeteoResponse cached = weatherCache.getIfPresent(key);
+        if (cached != null) {
+            return cached;
+        }
 
         String url = UriComponentsBuilder.fromUriString(OPEN_METEO_URL)
                 .queryParam("latitude", lat)
@@ -45,12 +79,21 @@ public class OpenMeteoClient {
                 .queryParam("timezone", "America/Belem")
                 .toUriString();
 
-        return restTemplate.getForObject(url, OpenMeteoResponse.class);
+        OpenMeteoResponse response = restTemplate.getForObject(url, OpenMeteoResponse.class);
+        if (response != null) {
+            weatherCache.put(key, response);
+        }
+        return response;
     }
 
     public OpenMeteoMarineResponse buscarDadosMarinhos(Double latitude, Double longitude) {
         double lat = latitude != null ? latitude : LATITUDE_BELEM;
         double lon = longitude != null ? longitude : LONGITUDE_BELEM;
+        String key = coordKey(lat, lon);
+        OpenMeteoMarineResponse cached = marineCache.getIfPresent(key);
+        if (cached != null) {
+            return cached;
+        }
 
         String url = UriComponentsBuilder.fromUriString(OPEN_METEO_MARINE_URL)
                 .queryParam("latitude", lat)
@@ -63,12 +106,21 @@ public class OpenMeteoClient {
                 .queryParam("cell_selection", "sea")
                 .toUriString();
 
-        return restTemplate.getForObject(url, OpenMeteoMarineResponse.class);
+        OpenMeteoMarineResponse response = restTemplate.getForObject(url, OpenMeteoMarineResponse.class);
+        if (response != null) {
+            marineCache.put(key, response);
+        }
+        return response;
     }
 
     public GfsFeaturesSnapshot buscarFeaturesGfsAtuais(Double latitude, Double longitude) {
         double lat = latitude != null ? latitude : LATITUDE_BELEM;
         double lon = longitude != null ? longitude : LONGITUDE_BELEM;
+        String key = coordKey(lat, lon);
+        GfsFeaturesSnapshot cached = gfsCache.getIfPresent(key);
+        if (cached != null) {
+            return cached;
+        }
 
         String url = UriComponentsBuilder.fromUriString(OPEN_METEO_URL)
                 .queryParam("latitude", lat)
@@ -149,7 +201,9 @@ public class OpenMeteoClient {
                 Map.entry("precipitation", "mm")
         );
 
-        return new GfsFeaturesSnapshot(featureTime, features, units);
+        GfsFeaturesSnapshot snapshot = new GfsFeaturesSnapshot(featureTime, features, units);
+        gfsCache.put(key, snapshot);
+        return snapshot;
     }
 
     private BigDecimal getAtIndex(List<BigDecimal> list, int index) {

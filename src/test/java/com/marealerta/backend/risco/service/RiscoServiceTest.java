@@ -9,6 +9,8 @@ import com.marealerta.backend.risco.model.PrevisaoChuvaMl;
 import com.marealerta.backend.risco.model.StatusQualidadeMl;
 import com.marealerta.backend.risco.repository.PrevisaoChuvaMlRepository;
 import com.marealerta.backend.telemetria.dto.TelemetriaDashboardResponse;
+import com.marealerta.backend.telemetria.model.LeituraTelemetria;
+import com.marealerta.backend.telemetria.model.TipoRegistroTelemetria;
 import com.marealerta.backend.telemetria.service.OpenMeteoClient;
 import com.marealerta.backend.telemetria.service.TelemetriaService;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +24,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
@@ -319,5 +323,79 @@ class RiscoServiceTest {
         assertThat(sentRequest.schemaVersion()).isEqualTo("rain-hourly-v1");
         assertThat(sentRequest.horizonHours()).isEqualTo(1);
         assertThat(sentRequest.features()).containsKey("temperature_2m");
+    }
+
+    @Test
+    @DisplayName("Deve calcular NivelRisco.CRITICO, pico real de 12h e veredito direto ao comerciante")
+    void deveCalcularCriticoEPicoRealComVereditoDireto() {
+        LocalDateTime agora = LocalDateTime.now(ZoneId.of("America/Belem")).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime picoMare = agora.plusHours(4);
+
+        LeituraTelemetria slotNormal = LeituraTelemetria.builder()
+                .tipoRegistro(TipoRegistroTelemetria.PREVISAO)
+                .nivelMare(BigDecimal.valueOf(2.40))
+                .precipitacao(BigDecimal.ZERO)
+                .probabilidadeChuva(20)
+                .dataHora(agora.plusHours(1))
+                .build();
+
+        LeituraTelemetria slotPicoChuvaEMare = LeituraTelemetria.builder()
+                .tipoRegistro(TipoRegistroTelemetria.PREVISAO)
+                .nivelMare(BigDecimal.valueOf(3.25))
+                .precipitacao(BigDecimal.valueOf(12.5))
+                .probabilidadeChuva(85)
+                .dataHora(picoMare)
+                .build();
+
+        PrevisaoMlResponse mlResponse = PrevisaoMlResponse.builder()
+                .rainProbability(0.80)
+                .rainExpected(true)
+                .expectedPrecipitationMm(BigDecimal.valueOf(11.0))
+                .qualityStatus(StatusQualidadeMl.OK)
+                .build();
+
+        when(telemetriaService.obterDashboard()).thenReturn(telemetriaPadrao);
+        when(telemetriaService.obterPrevisoesProximasHoras(12)).thenReturn(List.of(slotNormal, slotPicoChuvaEMare));
+        when(openMeteoClient.buscarFeaturesGfsAtuais(anyDouble(), anyDouble())).thenReturn(gfsSnapshotPadrao);
+        when(mlApiClient.solicitarPrevisao(any(PrevisaoMlRequest.class))).thenReturn(mlResponse);
+
+        RiscoResponse response = riscoService.processarEObterRiscoParaLocalidade("CAMPINA");
+
+        assertThat(response.getNivelRisco()).isEqualTo(NivelRisco.CRITICO);
+        assertThat(response.getAlertaEmitido()).isTrue();
+        assertThat(response.getNivelMareAtualMetros()).isEqualByComparingTo(BigDecimal.valueOf(2.20));
+        assertThat(response.getNivelMarePrevistoMetros()).isEqualByComparingTo(BigDecimal.valueOf(3.25));
+        assertThat(response.getHorarioPicoPrevisto()).isEqualTo(picoMare);
+        assertThat(response.getVaiAlagar()).isTrue();
+        assertThat(response.getRiscoAlagamentoSimples()).isEqualTo("PROVAVEL");
+        assertThat(response.getVaiChover()).isTrue();
+        assertThat(response.getIntensidadeChuvaPrevista()).isEqualTo("FORTE");
+        assertThat(response.getChuvaComMareAlta()).isTrue();
+        assertThat(response.getJanelaCriticaInicio()).isNotBlank();
+        assertThat(response.getMensagemCurta()).contains("Campina");
+    }
+
+    @Test
+    @DisplayName("Deve preencher veredito seguro e sem chuva quando cenario estiver tranquilo")
+    void devePreencherVereditoSeguroQuandoTranquilo() {
+        when(telemetriaService.obterDashboard()).thenReturn(telemetriaPadrao);
+        when(openMeteoClient.buscarFeaturesGfsAtuais(anyDouble(), anyDouble())).thenReturn(gfsSnapshotPadrao);
+        when(mlApiClient.solicitarPrevisao(any(PrevisaoMlRequest.class))).thenReturn(
+                PrevisaoMlResponse.builder()
+                        .rainProbability(0.10)
+                        .rainExpected(false)
+                        .expectedPrecipitationMm(BigDecimal.ZERO)
+                        .build()
+        );
+
+        RiscoResponse response = riscoService.processarEObterRiscoParaLocalidade("MARCO");
+
+        assertThat(response.getNivelRisco()).isEqualTo(NivelRisco.BAIXO);
+        assertThat(response.getVaiAlagar()).isFalse();
+        assertThat(response.getRiscoAlagamentoSimples()).isEqualTo("IMPROVAVEL");
+        assertThat(response.getVaiChover()).isFalse();
+        assertThat(response.getIntensidadeChuvaPrevista()).isEqualTo("SEM_CHUVA");
+        assertThat(response.getChuvaComMareAlta()).isFalse();
+        assertThat(response.getMensagemCurta()).contains("Marco");
     }
 }

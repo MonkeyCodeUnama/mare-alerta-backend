@@ -6,4 +6,6 @@ import com.marealerta.backend.whatsapp.model.ConfiguracaoWhatsapp;
 
 public interface ConfiguracaoWhatsappRepository extends JpaRepository<ConfiguracaoWhatsapp, Long> {
     Optional<ConfiguracaoWhatsapp> findFirstByAtivoTrueOrderByIdAsc();
+    Optional<ConfiguracaoWhatsapp> findFirstByOrderByIdAsc();
+    Optional<ConfiguracaoWhatsapp> findByInstancia(String instancia);
 }

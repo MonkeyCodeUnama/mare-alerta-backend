@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -21,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 
@@ -30,9 +32,11 @@ public class TelemetriaService {
 
     public static final String ESTACAO_BELEM_CODIGO = "BELEM-CENTRO";
     public static final String ESTACAO_BELEM_NOME = "Estação Ponto de Referência Belém";
+    public static final ZoneId BELEM_ZONE = ZoneId.of("America/Belem");
 
     private final LeituraTelemetriaRepository repository;
     private final OpenMeteoClient openMeteoClient;
+    private final TelemetriaSyncLock syncLock;
 
     @Transactional
     public LeituraTelemetriaResponse salvarManual(LeituraTelemetriaRequest request) {
@@ -68,6 +72,9 @@ public class TelemetriaService {
                 ? marineResponse.current().seaLevelHeightMsl()
                 : BigDecimal.ZERO;
 
+        // Serializa a escrita: duas sincronizacoes concorrentes nao podem inserir a mesma chave.
+        syncLock.adquirir();
+
         LeituraTelemetria leituraAtual = repository.findByEstacaoCodigoAndFonteAndTipoRegistroAndDataHora(
                 ESTACAO_BELEM_CODIGO, FonteTelemetria.OPEN_METEO, TipoRegistroTelemetria.OBSERVADO, dataHoraAtual)
                 .orElseGet(() -> LeituraTelemetria.builder()
@@ -83,6 +90,7 @@ public class TelemetriaService {
         leituraAtual.setTemperatura(current.temperatura());
         leituraAtual.setVentoVelocidade(current.ventoVelocidade());
         leituraAtual.setVentoDirecao(current.ventoDirecao());
+        leituraAtual.setProbabilidadeChuva(resolveCurrentRainProbability(response.hourly(), current.time()));
 
         LeituraTelemetria salva = repository.save(leituraAtual);
         sincronizarPrevisoesHorarias(response.hourly(), marineResponse != null ? marineResponse.hourly() : null);
@@ -100,7 +108,8 @@ public class TelemetriaService {
                             return repository.findTop1ByOrderByDataHoraDesc().orElseThrow();
                         }));
 
-        if (ultimaLeitura.getDataHora() != null && ultimaLeitura.getDataHora().isBefore(LocalDateTime.now().minusMinutes(30))) {
+        LocalDateTime agoraBelem = LocalDateTime.now(BELEM_ZONE);
+        if (ultimaLeitura.getDataHora() != null && ultimaLeitura.getDataHora().isBefore(agoraBelem.minusMinutes(30))) {
             try {
                 sincronizarOpenMeteo();
                 ultimaLeitura = repository.findTop1ByEstacaoCodigoAndTipoRegistroOrderByDataHoraDesc(
@@ -126,15 +135,20 @@ public class TelemetriaService {
         List<LeituraTelemetria> janela12h = repository.findByTipoRegistroAndDataHoraBetweenOrderByDataHoraAsc(
                 TipoRegistroTelemetria.PREVISAO, ultimaLeitura.getDataHora(), ultimaLeitura.getDataHora().plusHours(12));
 
-        LocalDateTime preamarHorario = janela12h.stream()
+        Optional<LeituraTelemetria> preamarLeitura = janela12h.stream()
                 .filter(l -> l.getNivelMare() != null)
-                .max(Comparator.comparing(LeituraTelemetria::getNivelMare))
+                .max(Comparator.comparing(LeituraTelemetria::getNivelMare));
+
+        LocalDateTime preamarHorario = preamarLeitura
                 .map(LeituraTelemetria::getDataHora)
                 .orElse(ultimaLeitura.getDataHora());
 
         BigDecimal nivelArredondado = ultimaLeitura.getNivelMare() != null
                 ? ultimaLeitura.getNivelMare().setScale(2, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
+        BigDecimal preamarNivelPrevisto = preamarLeitura
+                .map(l -> l.getNivelMare().setScale(2, RoundingMode.HALF_UP))
+                .orElse(nivelArredondado);
         BigDecimal chuvaArredondada = ultimaLeitura.getPrecipitacao() != null
                 ? ultimaLeitura.getPrecipitacao().setScale(1, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
@@ -148,6 +162,11 @@ public class TelemetriaService {
         DateTimeFormatter horaFormatter = DateTimeFormatter.ofPattern("HH:mm");
         String preamarFormatado = preamarHorario != null ? preamarHorario.format(horaFormatter) : null;
 
+        Integer probChuvaAtual = ultimaLeitura.getProbabilidadeChuva();
+        if (probChuvaAtual == null && !proximasPrevisoes.isEmpty()) {
+            probChuvaAtual = proximasPrevisoes.get(0).getProbabilidadeChuva();
+        }
+
         return TelemetriaDashboardResponse.builder()
                 .estacaoCodigo(ultimaLeitura.getEstacaoCodigo())
                 .estacaoNome(ultimaLeitura.getEstacaoNome())
@@ -156,6 +175,8 @@ public class TelemetriaService {
                 .tendencia(tendencia)
                 .preamarHorario(preamarHorario)
                 .preamarHorarioFormatado(preamarFormatado)
+                .preamarNivelPrevisto(preamarNivelPrevisto)
+                .probabilidadeChuvaAtual(probChuvaAtual)
                 .chuvaAtual(chuvaArredondada)
                 .chuvaFormatada(String.format(Locale.US, "%.1f mm/h", chuvaArredondada.doubleValue()))
                 .temperatura(tempArredondada)
@@ -173,9 +194,17 @@ public class TelemetriaService {
     }
 
     @Transactional(readOnly = true)
+    public List<LeituraTelemetria> obterPrevisoesProximasHoras(int horas) {
+        LocalDateTime agora = LocalDateTime.now(BELEM_ZONE);
+        return repository.findByTipoRegistroAndDataHoraBetweenOrderByDataHoraAsc(
+                TipoRegistroTelemetria.PREVISAO, agora, agora.plusHours(Math.max(1, horas)));
+    }
+
+    @Transactional(readOnly = true)
     public List<TelemetriaPontoGraficoDTO> obterPontosGrafico() {
-        LocalDateTime inicio = LocalDateTime.now().minusHours(12);
-        LocalDateTime fim = LocalDateTime.now().plusHours(12);
+        LocalDateTime agoraBelem = LocalDateTime.now(BELEM_ZONE);
+        LocalDateTime inicio = agoraBelem.minusHours(12);
+        LocalDateTime fim = agoraBelem.plusHours(12);
 
         List<LeituraTelemetria> leituras = repository.findByEstacaoCodigoAndDataHoraBetweenOrderByDataHoraAsc(
                 ESTACAO_BELEM_CODIGO, inicio, fim);
@@ -191,6 +220,7 @@ public class TelemetriaService {
                         .rain(l.getPrecipitacao() != null ? l.getPrecipitacao().setScale(1, RoundingMode.HALF_UP) : null)
                         .temperature(l.getTemperatura() != null ? l.getTemperatura().setScale(1, RoundingMode.HALF_UP) : null)
                         .wind(l.getVentoVelocidade() != null ? l.getVentoVelocidade().setScale(1, RoundingMode.HALF_UP) : null)
+                        .rainProbability(l.getProbabilidadeChuva())
                         .tipoRegistro(l.getTipoRegistro() != null ? l.getTipoRegistro().name() : "OBSERVADO")
                         .build())
                 .toList();
@@ -215,7 +245,7 @@ public class TelemetriaService {
             }
         }
 
-        LocalDateTime agora = LocalDateTime.now();
+        LocalDateTime agora = LocalDateTime.now(BELEM_ZONE);
         List<LeituraTelemetria> previsoes = new ArrayList<>();
         for (int i = 0; i < hourly.time().size(); i++) {
             String timeStr = hourly.time().get(i);
@@ -237,11 +267,36 @@ public class TelemetriaService {
                 prev.setTemperatura(hourly.temperatura() != null && i < hourly.temperatura().size() ? hourly.temperatura().get(i) : BigDecimal.ZERO);
                 prev.setVentoVelocidade(hourly.ventoVelocidade() != null && i < hourly.ventoVelocidade().size() ? hourly.ventoVelocidade().get(i) : BigDecimal.ZERO);
                 prev.setVentoDirecao(hourly.ventoDirecao() != null && i < hourly.ventoDirecao().size() ? hourly.ventoDirecao().get(i) : BigDecimal.ZERO);
+                prev.setProbabilidadeChuva(extractProbabilityAt(hourly.probabilidadePrecipitacao(), i));
 
                 previsoes.add(prev);
             }
         }
         repository.saveAll(previsoes);
+    }
+
+    private Integer resolveCurrentRainProbability(OpenMeteoClient.HourlyData hourly, String currentTimeStr) {
+        if (hourly == null || hourly.probabilidadePrecipitacao() == null || hourly.probabilidadePrecipitacao().isEmpty()) {
+            return null;
+        }
+        if (hourly.time() != null && currentTimeStr != null && currentTimeStr.length() >= 13) {
+            String prefix = currentTimeStr.substring(0, 13);
+            for (int i = 0; i < hourly.time().size(); i++) {
+                String slot = hourly.time().get(i);
+                if (slot != null && slot.startsWith(prefix)) {
+                    return extractProbabilityAt(hourly.probabilidadePrecipitacao(), i);
+                }
+            }
+        }
+        return extractProbabilityAt(hourly.probabilidadePrecipitacao(), 0);
+    }
+
+    private Integer extractProbabilityAt(List<BigDecimal> probs, int index) {
+        if (probs == null || index < 0 || index >= probs.size() || probs.get(index) == null) {
+            return null;
+        }
+        int rounded = (int) Math.round(probs.get(index).doubleValue());
+        return Math.max(0, Math.min(100, rounded));
     }
 
     private String calcularNivelRisco(BigDecimal nivelMare, BigDecimal chuva) {

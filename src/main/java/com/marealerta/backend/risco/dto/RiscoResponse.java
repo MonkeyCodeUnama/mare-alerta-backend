@@ -31,6 +31,18 @@ public class RiscoResponse {
     private LocalDateTime horarioPicoPrevisto;
     private Boolean alertaEmitido;
 
+    private BigDecimal nivelMareAtualMetros;
+    private Boolean vaiAlagar;
+    private String riscoAlagamentoSimples;
+    private Boolean vaiChover;
+    private String intensidadeChuvaPrevista;
+    private String horarioChuvaInicio;
+    private String horarioChuvaFim;
+    private Boolean chuvaComMareAlta;
+    private String janelaCriticaInicio;
+    private String janelaCriticaFim;
+    private String mensagemCurta;
+
     public Double getRainProbability() { return probabilidadeChuva; }
     public String getScenarioDescription() { return descricaoCenario; }
     public String getRiskLevel() { return nivelRisco != null ? nivelRisco.name() : null; }

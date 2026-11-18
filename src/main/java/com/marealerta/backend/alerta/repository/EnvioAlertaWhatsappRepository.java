@@ -3,6 +3,7 @@ package com.marealerta.backend.alerta.repository;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.marealerta.backend.alerta.model.EnvioAlertaWhatsapp;
@@ -14,6 +15,7 @@ public interface EnvioAlertaWhatsappRepository extends JpaRepository<EnvioAlerta
 
     List<EnvioAlertaWhatsapp> findByStatusEnvioOrderByCriadoEmAsc(StatusEnvioWhatsapp statusEnvio);
 
+    @EntityGraph(attributePaths = "estabelecimento")
     List<EnvioAlertaWhatsapp> findAllByOrderByCriadoEmDesc(Pageable pageable);
 
     List<EnvioAlertaWhatsapp> findByEstabelecimentoIdOrderByCriadoEmDesc(Long estabelecimentoId);

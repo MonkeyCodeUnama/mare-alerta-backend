@@ -9,7 +9,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%20Alpine-blue.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-ML%20Runtime-teal.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker%20Compose-Autocontido-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/Tests-131%20Passing%20(100%25)-success.svg?logo=junit5&logoColor=white)]()
+[![Tests](https://img.shields.io/badge/Tests-159%20Passing%20(100%25)-success.svg?logo=junit5&logoColor=white)]()
 
 </div>
 
@@ -35,8 +35,8 @@ O **Maré Alerta** resolve esse problema transformando dados em prevenção ativ
 | Camada | Tecnologia / Ferramenta | Descrição |
 | :--- | :--- | :--- |
 | **Backend** | Java 21 LTS + Spring Boot 4.1.1 | API RESTful, injeção de dependências e regras de negócio |
-| **Build & Testes** | Gradle 9.7 (Kotlin DSL) + JUnit 5 | 131 testes automatizados (unitários, mocks e controllers) |
-| **Banco de Dados** | PostgreSQL 16 + Flyway | 24 migrações ativas, modelagem 3FN e constraints estritas |
+| **Build & Testes** | Gradle 9.7 (Kotlin DSL) + JUnit 5 | 159 testes automatizados (unitários, mocks e controllers) |
+| **Banco de Dados** | PostgreSQL 16 + Flyway | 26 migrações ativas, modelagem 3FN e constraints estritas |
 | **Inteligência Artificial** | Python 3.13 + FastAPI + Scikit-learn | API preditiva separada (`mare-alerta-ia`) rodando modelo SGD |
 | **Telemetria & Clima** | Open-Meteo (Marine & GFS Global) | Nível do mar (`sea_level_height_msl`) e 20 features atmosféricas em UTC |
 | **Mensageria** | Evolution API v2 (WhatsApp Baileys) | Gateway de mensagens com suporte a QR Code e multi-instâncias |
@@ -181,8 +181,7 @@ curl -X POST http://localhost:8080/auth/login \
 mare-alerta-backend/
 ├── docker/
 ├── docs/
-│   ├── GUIA_BACKEND.md       # Guia vivo de arquitetura e histórico de atualizações
-│   └── IA_PREVISAO_CHUVA...  # Especificação técnica do modelo meteorológico
+│   └── GUIA_BACKEND.md       # Guia vivo de arquitetura e histórico de atualizações
 ├── src/
 │   ├── main/java/com/marealerta/backend/
 │   │   ├── alerta/           # Emissão e despacho de comunicados de emergência
@@ -194,8 +193,9 @@ mare-alerta-backend/
 │   │   ├── risco/            # Integração com o microserviço de IA e matriz de risco
 │   │   ├── shared/           # Configurações de CORS, Rate Limit e WebConfig
 │   │   ├── telemetria/       # Ingestão de dados Open-Meteo e cota de maré
-│   │   └── usuario/          # Entidade de credenciais e segurança
-│   └── test/                 # 131 testes automatizados (unitários e controllers)
+│   │   ├── usuario/          # Entidade de credenciais e segurança
+│   │   └── whatsapp/         # Canal administrativo WhatsApp e Evolution API
+│   └── test/                 # 159 testes automatizados (unitários e controllers)
 ├── docker-compose.yml        # Orquestrador dos 4 contêineres com healthchecks
 ├── Dockerfile                # Build multi-stage da aplicação Java 21
 ├── build.gradle.kts          # Script de build Gradle Kotlin DSL

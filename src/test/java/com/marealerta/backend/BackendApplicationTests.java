@@ -64,7 +64,7 @@ class BackendApplicationTests {
 				.andExpect(status().isCreated());
 		mockMvc.perform(post("/auth/registro").contentType(MediaType.APPLICATION_JSON).content(payload))
 				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.message").value("e-mail já cadastrado"));
+				.andExpect(jsonPath("$.message").value("Este e-mail já está cadastrado. Faça login ou utilize outro endereço."));
 	}
 
 	@Test
@@ -97,7 +97,7 @@ class BackendApplicationTests {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"email\":\"inexistente@example.com\",\"senha\":\"senha-segura\"}"))
 				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.message").value("credenciais inválidas"));
+				.andExpect(jsonPath("$.message").value("E-mail ou senha incorretos. Confira os dados e tente novamente."));
 	}
 
 	@Test

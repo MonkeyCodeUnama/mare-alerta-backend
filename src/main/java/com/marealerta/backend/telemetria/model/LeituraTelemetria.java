@@ -2,6 +2,7 @@ package com.marealerta.backend.telemetria.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -61,6 +62,9 @@ public class LeituraTelemetria {
     @Column(name = "vento_direcao", precision = 5, scale = 2)
     private BigDecimal ventoDirecao;
 
+    @Column(name = "probabilidade_chuva")
+    private Integer probabilidadeChuva;
+
     @Column(name = "data_hora", nullable = false)
     private LocalDateTime dataHora;
 
@@ -69,6 +73,6 @@ public class LeituraTelemetria {
 
     @PrePersist
     public void prePersist() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(ZoneId.of("America/Belem"));
     }
 }

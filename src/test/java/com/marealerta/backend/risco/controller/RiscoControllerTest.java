@@ -178,6 +178,12 @@ class RiscoControllerTest {
                 .descricaoCenario("ALERTA CRÍTICO: Risco iminente de alagamento.")
                 .horarioPicoPrevisto(LocalDateTime.now().plusHours(1))
                 .alertaEmitido(true)
+                .vaiAlagar(true)
+                .riscoAlagamentoSimples("PROVAVEL")
+                .vaiChover(true)
+                .intensidadeChuvaPrevista("FORTE")
+                .chuvaComMareAlta(true)
+                .mensagemCurta("Risco de alagamento na Cidade Velha com chuva e maré alta.")
                 .build();
 
         when(riscoService.processarEObterRiscoParaLocalidade("CIDADE_VELHA")).thenReturn(response);
@@ -189,7 +195,11 @@ class RiscoControllerTest {
                 .andExpect(jsonPath("$.bairro").value("CIDADE_VELHA"))
                 .andExpect(jsonPath("$.nivelRisco").value("ALTO"))
                 .andExpect(jsonPath("$.statusCota").value("TRANSBORDAMENTO"))
-                .andExpect(jsonPath("$.alertaEmitido").value(true));
+                .andExpect(jsonPath("$.alertaEmitido").value(true))
+                .andExpect(jsonPath("$.vaiAlagar").value(true))
+                .andExpect(jsonPath("$.vaiChover").value(true))
+                .andExpect(jsonPath("$.chuvaComMareAlta").value(true))
+                .andExpect(jsonPath("$.mensagemCurta").value("Risco de alagamento na Cidade Velha com chuva e maré alta."));
     }
 
     @Test

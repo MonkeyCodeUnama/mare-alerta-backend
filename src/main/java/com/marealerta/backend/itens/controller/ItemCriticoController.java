@@ -3,12 +3,14 @@ package com.marealerta.backend.itens.controller;
 import com.marealerta.backend.itens.dto.ItemCriticoRequest;
 import com.marealerta.backend.itens.dto.ItemCriticoResponse;
 import com.marealerta.backend.itens.service.ItemCriticoService;
+import com.marealerta.backend.usuario.model.Usuario;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,7 +34,12 @@ public class ItemCriticoController {
 
     @Operation(summary = "Criar um item crítico para o estabelecimento")
     @PostMapping({"", "/registrar"})
-    public ResponseEntity<ItemCriticoResponse> registrar(@Valid @RequestBody ItemCriticoRequest itemCriticoRequest) {
+    public ResponseEntity<ItemCriticoResponse> registrar(
+            @AuthenticationPrincipal Usuario usuario,
+            @Valid @RequestBody ItemCriticoRequest itemCriticoRequest) {
+        if (itemCriticoRequest.getEstabelecimentoId() == null && usuario != null && usuario.getEstabelecimento() != null) {
+            itemCriticoRequest.setEstabelecimentoId(usuario.getEstabelecimento().getId());
+        }
         ItemCriticoResponse item = itemCriticoService.criar(itemCriticoRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(item);
     }
@@ -40,9 +47,13 @@ public class ItemCriticoController {
     @Operation(summary = "Listar itens críticos do estabelecimento")
     @GetMapping({"", "/listar"})
     public ResponseEntity<List<ItemCriticoResponse>> listar(
+            @AuthenticationPrincipal Usuario usuario,
             @RequestParam(name = "estabelecimentoId", required = false) Long estabelecimentoId,
             @RequestParam(name = "estabelcimentoId", required = false) Long estabelcimentoId) {
         Long idFinal = estabelecimentoId != null ? estabelecimentoId : estabelcimentoId;
+        if (idFinal == null && usuario != null && usuario.getEstabelecimento() != null) {
+            idFinal = usuario.getEstabelecimento().getId();
+        }
         List<ItemCriticoResponse> itens = itemCriticoService.listar(idFinal);
         return ResponseEntity.ok(itens);
     }
