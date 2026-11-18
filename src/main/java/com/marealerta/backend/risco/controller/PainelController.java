@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,10 +40,17 @@ public class PainelController {
 
     @Operation(summary = "Obter resumo consolidado do painel", description = "Agrupa estabelecimento, risco atual do bairro, telemetria, resumo do checklist e último alerta em uma única chamada.")
     @ApiResponse(responseCode = "200", description = "Resumo do painel carregado com sucesso")
+    @ApiResponse(responseCode = "401", description = "Usuário não autenticado")
     @GetMapping("/resumo")
     public ResponseEntity<PainelResumoDTO> obterResumo(
             @AuthenticationPrincipal Usuario usuario,
             @RequestParam(name = "localidade", required = false) String localidade) {
+
+        // Nunca expor dados globais (checklist agregado e ultimo alerta de qualquer
+        // estabelecimento) para requisicoes anonimas.
+        if (usuario == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
 
         EstabelecimentoResponse estabelecimento = resolveEstabelecimento(usuario);
         String localidadeFinal = resolveLocalidade(localidade, estabelecimento);

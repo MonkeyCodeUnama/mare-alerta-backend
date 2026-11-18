@@ -46,7 +46,7 @@ public class SecurityConfig {
                         .requestMatchers("/admin/whatsapp/**").hasRole("ADMIN")
                         .requestMatchers("/telemetria/**").permitAll()
                         .requestMatchers("/risco/**").permitAll()
-                        .requestMatchers("/painel/**").permitAll()
+                        .requestMatchers("/painel/**").authenticated()
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/alertas", "/alertas/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/alertas", "/alertas/**").hasRole("ADMIN")

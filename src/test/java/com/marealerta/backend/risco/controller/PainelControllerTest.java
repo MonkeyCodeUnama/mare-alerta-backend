@@ -34,6 +34,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -138,37 +139,11 @@ class PainelControllerTest {
     }
 
     @Test
-    @DisplayName("GET /painel/resumo anonimo deve retornar resumo publico com localidade padrao")
-    void deveRetornarResumoAnonimoComLocalidadePadrao() throws Exception {
-        TelemetriaDashboardResponse dashboard = TelemetriaDashboardResponse.builder()
-                .estacaoCodigo("BELEM-CENTRO")
-                .nivelAtual(BigDecimal.valueOf(1.80))
-                .build();
-        RiscoResponse risco = RiscoResponse.builder()
-                .bairro("BELEM_CENTRO")
-                .nivelRisco(NivelRisco.BAIXO)
-                .vaiAlagar(false)
-                .vaiChover(false)
-                .build();
-        ChecklistResumoDTO vazio = ChecklistResumoDTO.builder()
-                .totalItens(0)
-                .concluidos(0)
-                .pendentes(0)
-                .percentualConcluido(0)
-                .progressoFormatado("0%")
-                .prontoParaInundacao(false)
-                .build();
-
-        when(telemetriaService.obterDashboard()).thenReturn(dashboard);
-        when(riscoService.processarEObterRiscoParaLocalidade("BELEM_CENTRO")).thenReturn(risco);
-        when(checklistService.obterResumo(null)).thenReturn(vazio);
-        when(alertaService.listarTodos()).thenReturn(List.of());
-
+    @DisplayName("GET /painel/resumo anonimo deve retornar 401 sem expor dados globais")
+    void deveNegarResumoAnonimo() throws Exception {
         mockMvc.perform(get("/painel/resumo").accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.estabelecimento").doesNotExist())
-                .andExpect(jsonPath("$.risco.bairro").value("BELEM_CENTRO"))
-                .andExpect(jsonPath("$.risco.vaiAlagar").value(false))
-                .andExpect(jsonPath("$.checklistResumo.totalItens").value(0));
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(riscoService, telemetriaService, estabelecimentoService, checklistService, alertaService);
     }
 }

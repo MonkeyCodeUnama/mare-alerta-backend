@@ -36,6 +36,7 @@ public class TelemetriaService {
 
     private final LeituraTelemetriaRepository repository;
     private final OpenMeteoClient openMeteoClient;
+    private final TelemetriaSyncLock syncLock;
 
     @Transactional
     public LeituraTelemetriaResponse salvarManual(LeituraTelemetriaRequest request) {
@@ -70,6 +71,9 @@ public class TelemetriaService {
         BigDecimal mareAtual = (marineResponse != null && marineResponse.current() != null && marineResponse.current().seaLevelHeightMsl() != null)
                 ? marineResponse.current().seaLevelHeightMsl()
                 : BigDecimal.ZERO;
+
+        // Serializa a escrita: duas sincronizacoes concorrentes nao podem inserir a mesma chave.
+        syncLock.adquirir();
 
         LeituraTelemetria leituraAtual = repository.findByEstacaoCodigoAndFonteAndTipoRegistroAndDataHora(
                 ESTACAO_BELEM_CODIGO, FonteTelemetria.OPEN_METEO, TipoRegistroTelemetria.OBSERVADO, dataHoraAtual)

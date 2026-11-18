@@ -38,6 +38,9 @@ class TelemetriaServiceTest {
     @Mock
     private OpenMeteoClient openMeteoClient;
 
+    @Mock
+    private TelemetriaSyncLock syncLock;
+
     @InjectMocks
     private TelemetriaService telemetriaService;
 
